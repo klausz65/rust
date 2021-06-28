@@ -54,7 +54,6 @@ pub enum TypeError<I: Interner> {
     ExistentialMismatch(ExpectedFound<I::BoundExistentialPredicates>),
     ConstMismatch(ExpectedFound<I::Const>),
 
-    IntrinsicCast,
     /// Safe `#[target_feature]` functions are not assignable to safe function pointers.
     TargetFeatureCast(I::DefId),
 }
@@ -86,8 +85,7 @@ impl<I: Interner> TypeError<I> {
             | Traits(_)
             | ProjectionMismatched(_)
             | ExistentialMismatch(_)
-            | ConstMismatch(_)
-            | IntrinsicCast => true,
+            | ConstMismatch(_) => true,
         }
     }
 }
