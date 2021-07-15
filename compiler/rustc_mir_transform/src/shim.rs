@@ -21,7 +21,8 @@ use tracing::{debug, instrument};
 
 use crate::{
     abort_unwinding_calls, add_call_guards, add_moves_for_packed_drops, deref_separator,
-    instsimplify, mentioned_items, pass_manager as pm, remove_noop_landing_pads, simplify,
+    instsimplify, lower_intrinsics, mentioned_items, pass_manager as pm, remove_noop_landing_pads,
+    simplify,
 };
 
 mod async_destructor_ctor;
@@ -153,6 +154,7 @@ fn make_shim<'tcx>(tcx: TyCtxt<'tcx>, instance: ty::InstanceKind<'tcx>) -> Body<
             &add_moves_for_packed_drops::AddMovesForPackedDrops,
             &deref_separator::Derefer,
             &remove_noop_landing_pads::RemoveNoopLandingPads,
+            &lower_intrinsics::LowerIntrinsics,
             &simplify::SimplifyCfg::MakeShim,
             &instsimplify::InstSimplify::BeforeInline,
             &abort_unwinding_calls::AbortUnwindingCalls,
