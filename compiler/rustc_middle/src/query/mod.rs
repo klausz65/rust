@@ -2339,6 +2339,11 @@ rustc_queries! {
         arena_cache
         desc { "functions to skip for move-size check" }
     }
+
+    query mir_only_crates(_: ()) -> &'tcx [CrateNum] {
+        eval_always
+        desc { "fetching all foreign crates built in mir-only mode" }
+    }
 }
 
 rustc_query_append! { define_callbacks! }
