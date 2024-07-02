@@ -10,7 +10,7 @@ use rustc_middle::span_bug;
 use rustc_session::errors::report_lit_error;
 use rustc_span::source_map::{Spanned, respan};
 use rustc_span::symbol::{Ident, Symbol, kw, sym};
-use rustc_span::{DUMMY_SP, DesugaringKind, Span};
+use rustc_span::{DesugaringKind, Span};
 use thin_vec::{ThinVec, thin_vec};
 
 use super::errors::{
@@ -196,7 +196,9 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         MatchKind::Postfix => hir::MatchSource::Postfix,
                     },
                 ),
-                ExprKind::Await(expr, await_kw_span) => self.lower_expr_await(*await_kw_span, expr),
+                ExprKind::Await(expr, await_kw_span) => {
+                    self.lower_expr_await(*await_kw_span, e.span, expr)
+                }
                 ExprKind::Closure(box Closure {
                     binder,
                     capture_clause,
@@ -262,9 +264,11 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 ExprKind::Field(el, ident) => {
                     hir::ExprKind::Field(self.lower_expr(el), self.lower_ident(*ident))
                 }
-                ExprKind::Index(el, er, brackets_span) => {
-                    hir::ExprKind::Index(self.lower_expr(el), self.lower_expr(er), *brackets_span)
-                }
+                ExprKind::Index(el, er, brackets_span) => hir::ExprKind::Index(
+                    self.lower_expr(el),
+                    self.lower_expr(er),
+                    self.lower_span(*brackets_span),
+                ),
                 ExprKind::Range(Some(e1), Some(e2), RangeLimits::Closed) => {
                     self.lower_expr_range_closed(e.span, e1, e2)
                 }
@@ -405,7 +409,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
         let last_segment = path.segments.last_mut().unwrap();
         assert!(last_segment.args.is_none());
         last_segment.args = Some(AstP(GenericArgs::AngleBracketed(AngleBracketedArgs {
-            span: DUMMY_SP,
+            span: last_segment.span().shrink_to_hi(),
             args: generic_args,
         })));
 
@@ -753,20 +757,24 @@ impl<'hir> LoweringContext<'_, 'hir> {
     ///     }
     /// }
     /// ```
-    fn lower_expr_await(&mut self, await_kw_span: Span, expr: &Expr) -> hir::ExprKind<'hir> {
+    fn lower_expr_await(
+        &mut self,
+        await_kw_span: Span,
+        full_span: Span,
+        expr: &Expr,
+    ) -> hir::ExprKind<'hir> {
         let expr = self.arena.alloc(self.lower_expr_mut(expr));
-        self.make_lowered_await(await_kw_span, expr, FutureKind::Future)
+        self.make_lowered_await(await_kw_span, full_span, expr, FutureKind::Future)
     }
 
     /// Takes an expr that has already been lowered and generates a desugared await loop around it
     fn make_lowered_await(
         &mut self,
         await_kw_span: Span,
+        full_span: Span,
         expr: &'hir hir::Expr<'hir>,
         await_kind: FutureKind,
     ) -> hir::ExprKind<'hir> {
-        let full_span = expr.span.to(await_kw_span);
-
         let is_async_gen = match self.coroutine_kind {
             Some(hir::CoroutineKind::Desugared(hir::CoroutineDesugaring::Async, _)) => false,
             Some(hir::CoroutineKind::Desugared(hir::CoroutineDesugaring::AsyncGen, _)) => true,
@@ -1706,7 +1714,12 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     ));
                     // `unsafe { ... }`
                     let iter = self.arena.alloc(self.expr_unsafe(iter));
-                    let kind = self.make_lowered_await(head_span, iter, FutureKind::AsyncIterator);
+                    let kind = self.make_lowered_await(
+                        head_span,
+                        head_span,
+                        iter,
+                        FutureKind::AsyncIterator,
+                    );
                     self.arena.alloc(hir::Expr { hir_id: self.next_id(), kind, span: head_span })
                 }
             };
@@ -2012,6 +2025,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
     }
 
     pub(super) fn expr_str(&mut self, sp: Span, value: Symbol) -> hir::Expr<'hir> {
+        let sp = self.lower_span(sp);
         let lit = self
             .arena
             .alloc(hir::Lit { span: sp, node: ast::LitKind::Str(value, ast::StrStyle::Cooked) });

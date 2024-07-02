@@ -183,6 +183,12 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
 }
 
 impl<'a, 'ra, 'tcx> mut_visit::MutVisitor for DefCollector<'a, 'ra, 'tcx> {
+    fn visit_span(&mut self, span: &mut Span) {
+        if self.resolver.tcx.sess.opts.incremental.is_some() {
+            *span = span.with_parent(Some(self.parent_def));
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip(self))]
     fn flat_map_item(&mut self, mut i: P<Item>) -> SmallVec<[P<Item>; 1]> {
         // Pick the def data. This need not be unique, but the more
