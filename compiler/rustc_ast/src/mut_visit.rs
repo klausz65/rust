@@ -367,7 +367,7 @@ where
 }
 
 // No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
-fn visit_attrs<T: MutVisitor>(vis: &mut T, attrs: &mut AttrVec) {
+pub fn visit_attrs<T: MutVisitor>(vis: &mut T, attrs: &mut AttrVec) {
     for attr in attrs.iter_mut() {
         vis.visit_attribute(attr);
     }
@@ -626,7 +626,7 @@ fn walk_local<T: MutVisitor>(vis: &mut T, local: &mut P<Local>) {
     vis.visit_span(span);
 }
 
-fn walk_attribute<T: MutVisitor>(vis: &mut T, attr: &mut Attribute) {
+pub fn walk_attribute<T: MutVisitor>(vis: &mut T, attr: &mut Attribute) {
     let Attribute { kind, id: _, style: _, span } = attr;
     match kind {
         AttrKind::Normal(normal) => {
@@ -825,7 +825,7 @@ fn visit_nonterminal<T: MutVisitor>(vis: &mut T, nt: &mut token::Nonterminal) {
 }
 
 // No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
-fn visit_defaultness<T: MutVisitor>(vis: &mut T, defaultness: &mut Defaultness) {
+pub fn visit_defaultness<T: MutVisitor>(vis: &mut T, defaultness: &mut Defaultness) {
     match defaultness {
         Defaultness::Default(span) => vis.visit_span(span),
         Defaultness::Final => {}
@@ -879,7 +879,7 @@ fn walk_coroutine_kind<T: MutVisitor>(vis: &mut T, coroutine_kind: &mut Coroutin
     }
 }
 
-fn walk_fn<T: MutVisitor>(vis: &mut T, kind: FnKind<'_>) {
+pub fn walk_fn<T: MutVisitor>(vis: &mut T, kind: FnKind<'_>) {
     match kind {
         FnKind::Fn(FnSig { header, decl, span }, generics, body) => {
             // Identifier and visibility are visited as a part of the item.
@@ -891,8 +891,9 @@ fn walk_fn<T: MutVisitor>(vis: &mut T, kind: FnKind<'_>) {
             }
             vis.visit_span(span);
         }
-        FnKind::Closure(binder, decl, body) => {
+        FnKind::Closure(binder, coroutine_kind, decl, body) => {
             vis.visit_closure_binder(binder);
+            coroutine_kind.as_mut().map(|coroutine_kind| vis.visit_coroutine_kind(coroutine_kind));
             vis.visit_fn_decl(decl);
             vis.visit_expr(body);
         }
@@ -905,7 +906,7 @@ fn walk_fn_decl<T: MutVisitor>(vis: &mut T, decl: &mut P<FnDecl>) {
     walk_fn_ret_ty(vis, output);
 }
 
-fn walk_fn_ret_ty<T: MutVisitor>(vis: &mut T, fn_ret_ty: &mut FnRetTy) {
+pub fn walk_fn_ret_ty<T: MutVisitor>(vis: &mut T, fn_ret_ty: &mut FnRetTy) {
     match fn_ret_ty {
         FnRetTy::Default(span) => vis.visit_span(span),
         FnRetTy::Ty(ty) => vis.visit_ty(ty),
@@ -1596,9 +1597,8 @@ pub fn walk_expr<T: MutVisitor>(vis: &mut T, Expr { kind, id, span, attrs, token
             fn_arg_span,
         }) => {
             visit_constness(vis, constness);
-            coroutine_kind.as_mut().map(|coroutine_kind| vis.visit_coroutine_kind(coroutine_kind));
             vis.visit_capture_by(capture_clause);
-            vis.visit_fn(FnKind::Closure(binder, fn_decl, body), *span, *id);
+            vis.visit_fn(FnKind::Closure(binder, coroutine_kind, fn_decl, body), *span, *id);
             vis.visit_span(fn_decl_span);
             vis.visit_span(fn_arg_span);
         }
@@ -1864,5 +1864,10 @@ pub enum FnKind<'a> {
     Fn(&'a mut FnSig, &'a mut Generics, &'a mut Option<P<Block>>),
 
     /// E.g., `|x, y| body`.
-    Closure(&'a mut ClosureBinder, &'a mut P<FnDecl>, &'a mut P<Expr>),
+    Closure(
+        &'a mut ClosureBinder,
+        &'a mut Option<CoroutineKind>,
+        &'a mut P<FnDecl>,
+        &'a mut P<Expr>,
+    ),
 }
