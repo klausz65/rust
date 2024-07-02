@@ -1552,7 +1552,7 @@ impl<'a, 'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
                             .bindings
                             .remove(&Ident::with_dummy_span(param.ident.name));
                     }
-                    GenericParamKind::Const { ref ty, kw_span: _, ref default } => {
+                    GenericParamKind::Const { ref ty, span: _, ref default } => {
                         // Const parameters can't have param bounds.
                         assert!(param.bounds.is_empty());
 

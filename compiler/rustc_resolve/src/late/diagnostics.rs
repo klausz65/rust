@@ -2564,7 +2564,7 @@ impl<'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'_, 'ast, 'ra, 'tcx> {
                         let span = if let [.., bound] = &param.bounds[..] {
                             bound.span()
                         } else if let GenericParam {
-                            kind: GenericParamKind::Const { ty, kw_span: _, default  }, ..
+                            kind: GenericParamKind::Const { ty, span: _, default  }, ..
                         } = param {
                             default.as_ref().map(|def| def.value.span).unwrap_or(ty.span)
                         } else {
