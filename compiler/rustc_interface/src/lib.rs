@@ -3,6 +3,7 @@
 #![feature(file_buffered)]
 #![feature(iter_intersperse)]
 #![feature(let_chains)]
+#![feature(refcell_try_map)]
 #![feature(try_blocks)]
 #![warn(unreachable_pub)]
 // tidy-alphabetical-end
