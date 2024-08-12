@@ -4,6 +4,11 @@
 //! conflicts between multiple such attributes attached to the same
 //! item.
 
+use std::cell::Cell;
+use std::collections::hash_map::Entry;
+
+use rustc_ast::token::TokenKind;
+use rustc_ast::tokenstream::TokenTree;
 use rustc_ast::{
     AttrKind, AttrStyle, Attribute, LitKind, MetaItemInner, MetaItemKind, MetaItemLit, ast,
     token::TokenKind, tokenstream::TokenTree, AttrKind, AttrStyle, Attribute, LitKind,
@@ -38,8 +43,6 @@ use rustc_target::spec::abi::Abi;
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt;
 use rustc_trait_selection::infer::{TyCtxtInferExt, ValuePairs};
 use rustc_trait_selection::traits::ObligationCtxt;
-use std::cell::Cell;
-use std::collections::hash_map::Entry;
 use tracing::debug;
 
 use crate::{errors, fluent_generated as fluent};
@@ -2415,7 +2418,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             // Valid item for `instruction_set()` is:
             // - arm::a32
             // - arm::t32
-            let valid_attribute = match (tokens.next(), tokens.next(), tokens.next()) {
+            match (tokens.next(), tokens.next(), tokens.next()) {
                 (
                     Some(TokenTree::Token(first_token, _)),
                     Some(TokenTree::Token(second_token, _)),
@@ -2424,18 +2427,23 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     (Some(first_ident), TokenKind::PathSep, Some(third_ident))
                         if first_ident.0.name == sym::arm =>
                     {
-                        third_ident.0.name == sym::a32 || third_ident.0.name == sym::t32
+                        if third_ident.0.name == sym::a32 || third_ident.0.name == sym::t32 {
+                            return;
+                        } else {
+                            self.dcx().emit_err(errors::InvalidInstructionSet { span: attr.span });
+                        }
                     }
-                    _ => false,
+                    _ => {
+                        self.dcx().emit_err(errors::InvalidInstructionSet { span: attr.span });
+                    }
                 },
-                _ => false,
+                (None, None, None) => {
+                    self.dcx().emit_err(errors::EmptyInstructionSet { span: attr.span });
+                }
+                _ => {
+                    self.dcx().emit_err(errors::InvalidInstructionSet { span: attr.span });
+                }
             };
-
-            if !valid_attribute {
-                self.dcx().emit_err(errors::InvalidInstructionSet { span: attr.span });
-            } else {
-                return;
-            }
         }
     }
 }
