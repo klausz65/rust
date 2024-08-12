@@ -1,11 +1,12 @@
 //! Defines the set of legal keys that can be used in queries.
 
+use rustc_ast::tokenstream::TokenStream;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE, LocalDefId, LocalModDefId, ModDefId};
 use rustc_hir::hir_id::{HirId, OwnerId};
 use rustc_query_system::dep_graph::DepNodeIndex;
 use rustc_query_system::query::{DefIdCache, DefaultCache, SingleCache, VecCache};
 use rustc_span::symbol::{Ident, Symbol};
-use rustc_span::{DUMMY_SP, Span};
+use rustc_span::{DUMMY_SP, LocalExpnId, Span};
 
 use crate::infer::canonical::CanonicalQueryInput;
 use crate::mir::mono::CollectionMode;
@@ -581,6 +582,19 @@ impl Key for (LocalDefId, HirId) {
     #[inline(always)]
     fn key_as_def_id(&self) -> Option<DefId> {
         Some(self.0.into())
+    }
+}
+
+impl<'tcx> Key for (LocalExpnId, &'tcx TokenStream) {
+    type Cache<V> = DefaultCache<Self, V>;
+
+    fn default_span(&self, _tcx: TyCtxt<'_>) -> Span {
+        self.0.expn_data().call_site
+    }
+
+    #[inline(always)]
+    fn key_as_def_id(&self) -> Option<DefId> {
+        None
     }
 }
 
