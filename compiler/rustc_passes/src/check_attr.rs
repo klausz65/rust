@@ -4,11 +4,10 @@
 //! conflicts between multiple such attributes attached to the same
 //! item.
 
-use std::cell::Cell;
-use std::collections::hash_map::Entry;
-
 use rustc_ast::{
     AttrKind, AttrStyle, Attribute, LitKind, MetaItemInner, MetaItemKind, MetaItemLit, ast,
+    token::TokenKind, tokenstream::TokenTree, AttrKind, AttrStyle, Attribute, LitKind,
+    MetaItemKind, MetaItemLit, NestedMetaItem,
 };
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, DiagCtxtHandle, IntoDiagArg, MultiSpan, StashKey};
@@ -39,6 +38,8 @@ use rustc_target::spec::abi::Abi;
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt;
 use rustc_trait_selection::infer::{TyCtxtInferExt, ValuePairs};
 use rustc_trait_selection::traits::ObligationCtxt;
+use std::cell::Cell;
+use std::collections::hash_map::Entry;
 use tracing::debug;
 
 use crate::{errors, fluent_generated as fluent};
@@ -252,6 +253,9 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 }
                 [sym::linkage, ..] => self.check_linkage(attr, span, target),
                 [sym::rustc_pub_transparent, ..] => self.check_rustc_pub_transparent( attr.span, span, attrs),
+                [sym::instruction_set, ..] => {
+                    self.check_instruction_set(attr, item);
+                }
                 [
                     // ok
                     sym::allow
@@ -267,7 +271,6 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     | sym::omit_gdb_pretty_printer_section // FIXME(omit_gdb_pretty_printer_section)
                     | sym::used // handled elsewhere to restrict to static items
                     | sym::repr // handled elsewhere to restrict to type decls items
-                    | sym::instruction_set // broken on stable!!!
                     | sym::windows_subsystem // broken on stable!!!
                     | sym::patchable_function_entry // FIXME(patchable_function_entry)
                     | sym::deprecated_safe // FIXME(deprecated_safe)
@@ -2401,6 +2404,37 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 self.dcx().emit_err(errors::AutoDiffAttr { attr_span: span });
                 self.abort.set(true);
+        }
+    }
+
+    fn check_instruction_set(&self, attr: &Attribute, _item: Option<ItemLike<'_>>) {
+        if let AttrKind::Normal(ref p) = attr.kind {
+            let inner_tokens = p.item.args.inner_tokens();
+            let mut tokens = inner_tokens.trees();
+
+            // Valid item for `instruction_set()` is:
+            // - arm::a32
+            // - arm::t32
+            let valid_attribute = match (tokens.next(), tokens.next(), tokens.next()) {
+                (
+                    Some(TokenTree::Token(first_token, _)),
+                    Some(TokenTree::Token(second_token, _)),
+                    Some(TokenTree::Token(third_token, _)),
+                ) => match (first_token.ident(), second_token.kind.clone(), third_token.ident()) {
+                    (Some(first_ident), TokenKind::PathSep, Some(third_ident))
+                        if first_ident.0.name == sym::arm =>
+                    {
+                        third_ident.0.name == sym::a32 || third_ident.0.name == sym::t32
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+
+            if !valid_attribute {
+                self.dcx().emit_err(errors::InvalidInstructionSet { span: attr.span });
+            } else {
+                return;
             }
         }
     }
