@@ -344,6 +344,7 @@ dependencies = [
  "rustc-demangle",
  "std_detect",
  "unwind",
+ "vex-sdk",
  "wasi",
  "windows-targets 0.0.0",
 ]
@@ -409,6 +410,16 @@ checksum = "637d511437df708cee34bdec7ba2f1548d256b7acf3ff20e0a1c559f9bf3a987"
 dependencies = [
  "compiler_builtins",
  "gimli 0.31.1",
+ "rustc-std-workspace-core",
+]
+
+[[package]]
+name = "vex-sdk"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f285bbc2b96fc4c7fae42ebe365dd2e9121e7002a58b1a9e0e4b1d14dba4d6d0"
+dependencies = [
+ "compiler_builtins",
  "rustc-std-workspace-core",
 ]
 

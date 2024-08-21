@@ -4984,47 +4984,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
-name = "std"
-version = "0.0.0"
-dependencies = [
- "addr2line 0.22.0",
- "alloc",
- "cfg-if",
- "compiler_builtins",
- "core",
- "dlmalloc",
- "fortanix-sgx-abi",
- "hashbrown",
- "hermit-abi 0.4.0",
- "libc",
- "miniz_oxide",
- "object 0.36.0",
- "panic_abort",
- "panic_unwind",
- "profiler_builtins",
- "r-efi",
- "r-efi-alloc",
- "rand",
- "rand_xorshift",
- "rustc-demangle",
- "std_detect",
- "unwind",
- "vex-sdk",
- "wasi",
-]
-
-[[package]]
-name = "std_detect"
-version = "0.1.5"
-dependencies = [
- "cfg-if",
- "compiler_builtins",
- "libc",
- "rustc-std-workspace-alloc",
- "rustc-std-workspace-core",
-]
-
-[[package]]
 name = "string_cache"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5763,26 +5722,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "vex-sdk"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f285bbc2b96fc4c7fae42ebe365dd2e9121e7002a58b1a9e0e4b1d14dba4d6d0"
-dependencies = [
- "compiler_builtins",
- "rustc-std-workspace-core",
-]
-
-[[package]]
-name = "wait-timeout"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
-dependencies = [
- "libc",
-]
+checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "walkdir"
