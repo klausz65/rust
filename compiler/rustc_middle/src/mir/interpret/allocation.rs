@@ -643,6 +643,12 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
         Ok(())
     }
 
+    /// Write zeroes to the unitialized memory within the given memory range.
+    pub fn write_zero_if_uninit(&mut self, range: AllocRange) -> AllocResult {
+        self.mark_init(range, true); // TODO: Write zeroes?
+        Ok(())
+    }
+
     /// Remove all provenance in the given memory range.
     pub fn clear_provenance(&mut self, cx: &impl HasDataLayout, range: AllocRange) -> AllocResult {
         self.provenance.clear(range, cx)?;

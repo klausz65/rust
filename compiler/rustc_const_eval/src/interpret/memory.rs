@@ -944,6 +944,26 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         interp_ok(())
     }
 
+    pub fn alloc_mark_init_rec(&mut self, id: AllocId) -> InterpResult<'tcx> {
+        let mut reachable = rustc_data_structures::fx::FxHashSet::default();
+        let mut todo = vec![id];
+        while let Some(id) = todo.pop() {
+            if reachable.insert(id) {
+                // This is a new allocation, add the allocation it points to `todo`.
+                if let Ok((alloc, _)) = self.get_alloc_raw_mut(id) {
+                    let range = AllocRange { start: Size::ZERO, size: Size::from_bytes(alloc.len()) };
+                    alloc
+                        .write_zero_if_uninit(range)
+                        .map_err(|e| e.to_interp_error(id))?;
+                    todo.extend(
+                        alloc.provenance().provenances().filter_map(|prov| prov.get_alloc_id()),
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Create a lazy debug printer that prints the given allocation and all allocations it points
     /// to, recursively.
     #[must_use]
