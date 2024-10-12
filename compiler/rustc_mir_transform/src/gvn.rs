@@ -86,6 +86,7 @@ use std::borrow::Cow;
 
 use either::Either;
 use rustc_abi::{self as abi, BackendRepr, FIRST_VARIANT, FieldIdx, Primitive, Size, VariantIdx};
+use rustc_ast::attr;
 use rustc_const_eval::const_eval::DummyMachine;
 use rustc_const_eval::interpret::{
     ImmTy, Immediate, InterpCx, MemPlaceMeta, MemoryKind, OpTy, Projectable, Scalar,
@@ -102,16 +103,26 @@ use rustc_middle::mir::visit::*;
 use rustc_middle::mir::*;
 use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, Ty, TyCtxt};
-use rustc_span::DUMMY_SP;
 use rustc_span::def_id::DefId;
+use rustc_span::{DUMMY_SP, sym};
 use smallvec::SmallVec;
 use tracing::{debug, instrument, trace};
 
 use crate::ssa::{AssignedValue, SsaLocals};
 
-pub(super) struct GVN;
+pub(super) enum GVN {
+    Polymorphic,
+    PostMono,
+}
 
 impl<'tcx> crate::MirPass<'tcx> for GVN {
+    fn name(&self) -> &'static str {
+        match self {
+            GVN::Polymorphic => "GVN",
+            GVN::PostMono => "GVN-post-mono",
+        }
+    }
+
     fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
         sess.mir_opt_level() >= 2
     }
@@ -125,7 +136,22 @@ impl<'tcx> crate::MirPass<'tcx> for GVN {
         // Clone dominators because we need them while mutating the body.
         let dominators = body.basic_blocks.dominators().clone();
 
-        let mut state = VnState::new(tcx, body, typing_env, &ssa, dominators, &body.local_decls);
+        let preserve_ub_checks = match self {
+            GVN::Polymorphic => {
+                attr::contains_name(tcx.hir().krate_attrs(), sym::rustc_preserve_ub_checks)
+            }
+            GVN::PostMono => false,
+        };
+
+        let mut state = VnState::new(
+            tcx,
+            body,
+            typing_env,
+            &ssa,
+            dominators,
+            &body.local_decls,
+            preserve_ub_checks,
+        );
         ssa.for_each_assignment_mut(
             body.basic_blocks.as_mut_preserves_cfg(),
             |local, value, location| {
@@ -259,6 +285,7 @@ struct VnState<'body, 'tcx> {
     ssa: &'body SsaLocals,
     dominators: Dominators<BasicBlock>,
     reused_locals: BitSet<Local>,
+    preserve_ub_checks: bool,
 }
 
 impl<'body, 'tcx> VnState<'body, 'tcx> {
@@ -269,6 +296,7 @@ impl<'body, 'tcx> VnState<'body, 'tcx> {
         ssa: &'body SsaLocals,
         dominators: Dominators<BasicBlock>,
         local_decls: &'body LocalDecls<'tcx>,
+        preserve_ub_checks: bool,
     ) -> Self {
         // Compute a rough estimate of the number of values in the body from the number of
         // statements. This is meant to reduce the number of allocations, but it's all right if
@@ -290,6 +318,7 @@ impl<'body, 'tcx> VnState<'body, 'tcx> {
             ssa,
             dominators,
             reused_locals: BitSet::new_empty(local_decls.len()),
+            preserve_ub_checks,
         }
     }
 
@@ -535,7 +564,14 @@ impl<'body, 'tcx> VnState<'body, 'tcx> {
                         .tcx
                         .offset_of_subfield(self.typing_env(), layout, fields.iter())
                         .bytes(),
-                    NullOp::UbChecks => return None,
+                    NullOp::UbChecks => {
+                        if self.preserve_ub_checks {
+                            return None;
+                        } else {
+                            let val = ImmTy::from_bool(self.tcx.sess.ub_checks(), self.tcx);
+                            return Some(val.into());
+                        }
+                    }
                 };
                 let usize_layout = self.ecx.layout_of(self.tcx.types.usize).unwrap();
                 let imm = ImmTy::from_uint(val, usize_layout);
