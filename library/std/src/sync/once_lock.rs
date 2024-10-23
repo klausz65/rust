@@ -100,6 +100,7 @@ use crate::sync::Once;
 ///
 /// ```
 #[stable(feature = "once_cell", since = "1.70.0")]
+#[cfg_attr(not(bootstrap), rustc_significant_interior_mutable_type)]
 pub struct OnceLock<T> {
     once: Once,
     // Whether or not the value is initialized is tracked by `once.is_completed()`.
