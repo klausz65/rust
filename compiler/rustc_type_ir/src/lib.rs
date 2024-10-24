@@ -19,14 +19,13 @@ use rustc_macros::{Decodable, Encodable, HashStable_NoContext};
 
 // These modules are `pub` since they are not glob-imported.
 #[macro_use]
-pub mod visit;
+pub mod traverse;
 #[cfg(feature = "nightly")]
 pub mod codec;
 pub mod data_structures;
 pub mod elaborate;
 pub mod error;
 pub mod fast_reject;
-pub mod fold;
 #[cfg_attr(feature = "nightly", rustc_diagnostic_item = "type_ir_inherent")]
 pub mod inherent;
 pub mod ir_print;
@@ -76,6 +75,8 @@ pub use opaque_ty::*;
 pub use predicate::*;
 pub use predicate_kind::*;
 pub use region_kind::*;
+use rustc_type_ir_macros::NoopTypeTraversable_Generic;
+pub use traverse::{fold, visit};
 pub use ty_info::*;
 pub use ty_kind::*;
 pub use upcast::*;
@@ -379,6 +380,7 @@ impl Default for UniverseIndex {
 
 rustc_index::newtype_index! {
     #[cfg_attr(feature = "nightly", derive(HashStable_NoContext))]
+    #[derive(NoopTypeTraversable_Generic)]
     #[encodable]
     #[orderable]
     #[debug_format = "{}"]
