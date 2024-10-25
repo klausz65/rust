@@ -2334,6 +2334,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             }
 
             infcx.err_ctxt().note_type_err(
+                cause.span,
                 &mut diag,
                 &cause,
                 None,
