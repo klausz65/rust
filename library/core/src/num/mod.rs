@@ -208,130 +208,187 @@ macro_rules! midpoint_impl {
 
 macro_rules! widening_impl {
     ($SelfT:ty, $WideT:ty, $BITS:literal, unsigned) => {
-        /// Calculates the complete product `self * rhs` without the possibility to overflow.
-        ///
-        /// This returns the low-order (wrapping) bits and the high-order (overflow) bits
-        /// of the result as two separate values, in that order.
-        ///
-        /// If you also need to add a carry to the wide result, then you want
-        /// [`Self::carrying_mul`] instead.
-        ///
-        /// # Examples
-        ///
-        /// Basic usage:
-        ///
-        /// Please note that this example is shared between integer types.
-        /// Which explains why `u32` is used here.
-        ///
-        /// ```
-        /// #![feature(bigint_helper_methods)]
-        /// assert_eq!(5u32.widening_mul(2), (10, 0));
-        /// assert_eq!(1_000_000_000u32.widening_mul(10), (1410065408, 2));
-        /// ```
-        #[unstable(feature = "bigint_helper_methods", issue = "85532")]
-        #[rustc_const_unstable(feature = "const_bigint_helper_methods", issue = "85532")]
-        #[must_use = "this returns the result of the operation, \
-                      without modifying the original"]
         #[inline]
-        pub const fn widening_mul(self, rhs: Self) -> (Self, Self) {
-            // note: longer-term this should be done via an intrinsic,
-            //   but for now we can deal without an impl for u128/i128
+        const fn widening_mul_impl(self, rhs: $SelfT) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
             // SAFETY: overflow will be contained within the wider types
             let wide = unsafe { (self as $WideT).unchecked_mul(rhs as $WideT) };
             (wide as $SelfT, (wide >> $BITS) as $SelfT)
         }
 
-        /// Calculates the "full multiplication" `self * rhs + carry`
-        /// without the possibility to overflow.
-        ///
-        /// This returns the low-order (wrapping) bits and the high-order (overflow) bits
-        /// of the result as two separate values, in that order.
-        ///
-        /// Performs "long multiplication" which takes in an extra amount to add, and may return an
-        /// additional amount of overflow. This allows for chaining together multiple
-        /// multiplications to create "big integers" which represent larger values.
-        ///
-        /// If you don't need the `carry`, then you can use [`Self::widening_mul`] instead.
-        ///
-        /// # Examples
-        ///
-        /// Basic usage:
-        ///
-        /// Please note that this example is shared between integer types.
-        /// Which explains why `u32` is used here.
-        ///
-        /// ```
-        /// #![feature(bigint_helper_methods)]
-        /// assert_eq!(5u32.carrying_mul(2, 0), (10, 0));
-        /// assert_eq!(5u32.carrying_mul(2, 10), (20, 0));
-        /// assert_eq!(1_000_000_000u32.carrying_mul(10, 0), (1410065408, 2));
-        /// assert_eq!(1_000_000_000u32.carrying_mul(10, 10), (1410065418, 2));
-        #[doc = concat!("assert_eq!(",
-            stringify!($SelfT), "::MAX.carrying_mul(", stringify!($SelfT), "::MAX, ", stringify!($SelfT), "::MAX), ",
-            "(0, ", stringify!($SelfT), "::MAX));"
-        )]
-        /// ```
-        ///
-        /// This is the core operation needed for scalar multiplication when
-        /// implementing it for wider-than-native types.
-        ///
-        /// ```
-        /// #![feature(bigint_helper_methods)]
-        /// fn scalar_mul_eq(little_endian_digits: &mut Vec<u16>, multiplicand: u16) {
-        ///     let mut carry = 0;
-        ///     for d in little_endian_digits.iter_mut() {
-        ///         (*d, carry) = d.carrying_mul(multiplicand, carry);
-        ///     }
-        ///     if carry != 0 {
-        ///         little_endian_digits.push(carry);
-        ///     }
-        /// }
-        ///
-        /// let mut v = vec![10, 20];
-        /// scalar_mul_eq(&mut v, 3);
-        /// assert_eq!(v, [30, 60]);
-        ///
-        /// assert_eq!(0x87654321_u64 * 0xFEED, 0x86D3D159E38D);
-        /// let mut v = vec![0x4321, 0x8765];
-        /// scalar_mul_eq(&mut v, 0xFEED);
-        /// assert_eq!(v, [0xE38D, 0xD159, 0x86D3]);
-        /// ```
-        ///
-        /// If `carry` is zero, this is similar to [`overflowing_mul`](Self::overflowing_mul),
-        /// except that it gives the value of the overflow instead of just whether one happened:
-        ///
-        /// ```
-        /// #![feature(bigint_helper_methods)]
-        /// let r = u8::carrying_mul(7, 13, 0);
-        /// assert_eq!((r.0, r.1 != 0), u8::overflowing_mul(7, 13));
-        /// let r = u8::carrying_mul(13, 42, 0);
-        /// assert_eq!((r.0, r.1 != 0), u8::overflowing_mul(13, 42));
-        /// ```
-        ///
-        /// The value of the first field in the returned tuple matches what you'd get
-        /// by combining the [`wrapping_mul`](Self::wrapping_mul) and
-        /// [`wrapping_add`](Self::wrapping_add) methods:
-        ///
-        /// ```
-        /// #![feature(bigint_helper_methods)]
-        /// assert_eq!(
-        ///     789_u16.carrying_mul(456, 123).0,
-        ///     789_u16.wrapping_mul(456).wrapping_add(123),
-        /// );
-        /// ```
-        #[unstable(feature = "bigint_helper_methods", issue = "85532")]
-        #[rustc_const_unstable(feature = "bigint_helper_methods", issue = "85532")]
-        #[must_use = "this returns the result of the operation, \
-                      without modifying the original"]
         #[inline]
-        pub const fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
-            // note: longer-term this should be done via an intrinsic,
-            //   but for now we can deal without an impl for u128/i128
+        const fn carrying_mul_impl(self, rhs: $SelfT, carry: $SelfT) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
             // SAFETY: overflow will be contained within the wider types
             let wide = unsafe {
                 (self as $WideT).unchecked_mul(rhs as $WideT).unchecked_add(carry as $WideT)
             };
             (wide as $SelfT, (wide >> $BITS) as $SelfT)
+        }
+
+        #[inline]
+        const fn carrying2_mul_impl(
+            self,
+            rhs: $SelfT,
+            carry1: $SelfT,
+            carry2: $SelfT,
+        ) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            // SAFETY: overflow will be contained within the wider types
+            let wide = unsafe {
+                (self as $WideT)
+                    .unchecked_mul(rhs as $WideT)
+                    .unchecked_add(carry1 as $WideT)
+                    .unchecked_add(carry2 as $WideT)
+            };
+            (wide as $SelfT, (wide >> $BITS) as $SelfT)
+        }
+    };
+    ($SelfT:ty, $UnsignedT:ty, $WideT:ty, $BITS:literal, signed) => {
+        #[inline]
+        const fn widening_mul_impl(self, rhs: $SelfT) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            // SAFETY: overflow will be contained within the wider types
+            let wide = unsafe { (self as $WideT).unchecked_mul(rhs as $WideT) };
+            (wide as $UnsignedT, (wide >> $BITS) as $SelfT)
+        }
+
+        #[inline]
+        const fn carrying_mul_impl(self, rhs: $SelfT, carry: $SelfT) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            // SAFETY: overflow will be contained within the wider types
+            let wide = unsafe {
+                (self as $WideT).unchecked_mul(rhs as $WideT).unchecked_add(carry as $WideT)
+            };
+            (wide as $UnsignedT, (wide >> $BITS) as $SelfT)
+        }
+
+        #[inline]
+        const fn carrying2_mul_impl(
+            self,
+            rhs: $SelfT,
+            carry1: $SelfT,
+            carry2: $SelfT,
+        ) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            // SAFETY: overflow will be contained within the wider types
+            let wide = unsafe {
+                (self as $WideT)
+                    .unchecked_mul(rhs as $WideT)
+                    .unchecked_add(carry1 as $WideT)
+                    .unchecked_add(carry2 as $WideT)
+            };
+            (wide as $UnsignedT, (wide >> $BITS) as $SelfT)
+        }
+    };
+    ($SelfT:ty, $HalfT:ty, $HALF_BITS:literal, unsigned naive) => {
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn widening_mul_impl(self, rhs: $SelfT) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let a = (self >> $HALF_BITS) as $HalfT;
+            let b = self as $HalfT;
+            let c = (rhs >> $HALF_BITS) as $HalfT;
+            let d = rhs as $HalfT;
+            let (p1, p2) = b.widening_mul(d);
+            let (p2, p31) = b.carrying_mul(c, p2);
+            let (p2, p32) = a.carrying_mul(d, p2);
+            let (p3, p4) = a.carrying2_mul(c, p31, p32);
+            (
+                (p1 as $SelfT) | ((p2 as $SelfT) << $HALF_BITS),
+                (p3 as $SelfT) | ((p4 as $SelfT) << $HALF_BITS),
+            )
+        }
+
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn carrying_mul_impl(self, rhs: $SelfT, carry: $SelfT) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let (lo, hi) = self.widening_mul(rhs);
+            let (lo, carry) = lo.overflowing_add(carry);
+
+            // SAFETY: We know that the result cannot overflow, since multiplication has room to add
+            //   a carry.
+            let hi = unsafe { hi.unchecked_add(carry as $SelfT) };
+
+            (lo, hi)
+        }
+
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn carrying2_mul_impl(
+            self,
+            rhs: $SelfT,
+            carry1: $SelfT,
+            carry2: $SelfT,
+        ) -> ($SelfT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let (lo, hi) = self.carrying_mul(rhs, carry1);
+            let (lo, carry) = lo.overflowing_add(carry2);
+
+            // SAFETY: We know that the result cannot overflow, since multiplication has room to add
+            //   two carries.
+            let hi = unsafe { hi.unchecked_add(carry as $SelfT) };
+
+            (lo, hi)
+        }
+    };
+    ($SelfT:ty, $UnsignedT:ty, signed naive) => {
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn widening_mul_impl(self, rhs: $SelfT) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let (lo, hi) = (self as $UnsignedT).widening_mul(rhs as $UnsignedT);
+            let mut hi = hi as $SelfT;
+            if self < 0 {
+                hi = hi.wrapping_sub(rhs);
+            }
+            if rhs < 0 {
+                hi = hi.wrapping_sub(self);
+            }
+            (lo, hi)
+        }
+
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn carrying_mul_impl(self, rhs: $SelfT, carry: $SelfT) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let (lo, hi) = self.widening_mul(rhs);
+            let carry_sign = carry < 0;
+            let (lo, carry) = lo.overflowing_add(carry as $UnsignedT);
+
+            // SAFETY: We know that the result cannot overflow, since multiplication has room to add
+            //   a carry.
+            let hi = unsafe {
+                // we need to add the "sign extended" version, which is equivalent to subtracting
+                // by the carry instead of adding
+                hi.unchecked_add(carry as $SelfT - carry_sign as $SelfT)
+            };
+
+            (lo, hi)
+        }
+
+        #[rustc_allow_const_fn_unstable(const_bigint_helper_methods)]
+        #[inline]
+        const fn carrying2_mul_impl(
+            self,
+            rhs: $SelfT,
+            carry1: $SelfT,
+            carry2: $SelfT,
+        ) -> ($UnsignedT, $SelfT) {
+            // note: longer-term this should be done via an intrinsic
+            let (lo, hi) = self.carrying_mul(rhs, carry1);
+            let carry_sign = carry2 < 0;
+            let (lo, carry) = lo.overflowing_add(carry2 as $UnsignedT);
+
+            // SAFETY: We know that the result cannot overflow, since multiplication has room to add
+            //   a two carries.
+            let hi = unsafe {
+                // we need to add the "sign extended" version, which is equivalent to subtracting
+                // by the carry instead of adding
+                hi.unchecked_add(carry as $SelfT - carry_sign as $SelfT)
+            };
+            (lo, hi)
         }
     };
 }
@@ -358,6 +415,7 @@ impl i8 {
         bound_condition = "",
     }
     midpoint_impl! { i8, i16, signed }
+    widening_impl! { i8, u8, i16, 8, signed }
 }
 
 impl i16 {
@@ -382,6 +440,7 @@ impl i16 {
         bound_condition = "",
     }
     midpoint_impl! { i16, i32, signed }
+    widening_impl! { i16, u16, i32, 16, signed }
 }
 
 impl i32 {
@@ -406,6 +465,7 @@ impl i32 {
         bound_condition = "",
     }
     midpoint_impl! { i32, i64, signed }
+    widening_impl! { i32, u32, i64, 32, signed }
 }
 
 impl i64 {
@@ -430,6 +490,7 @@ impl i64 {
         bound_condition = "",
     }
     midpoint_impl! { i64, signed }
+    widening_impl! { i64, u64, i128, 64, signed }
 }
 
 impl i128 {
@@ -456,6 +517,7 @@ impl i128 {
         bound_condition = "",
     }
     midpoint_impl! { i128, signed }
+    widening_impl! { i128, u128, signed naive }
 }
 
 #[cfg(target_pointer_width = "16")]
@@ -481,6 +543,7 @@ impl isize {
         bound_condition = " on 16-bit targets",
     }
     midpoint_impl! { isize, i32, signed }
+    widening_impl! { isize, usize, i32, 16, signed }
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -506,6 +569,7 @@ impl isize {
         bound_condition = " on 32-bit targets",
     }
     midpoint_impl! { isize, i64, signed }
+    widening_impl! { isize, usize, i64, 32, signed }
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -531,6 +595,7 @@ impl isize {
         bound_condition = " on 64-bit targets",
     }
     midpoint_impl! { isize, signed }
+    widening_impl! { isize, usize, i128, 64, signed }
 }
 
 /// If the 6th bit is set ascii is lower case.
@@ -556,8 +621,8 @@ impl u8 {
         from_xe_bytes_doc = "",
         bound_condition = "",
     }
-    widening_impl! { u8, u16, 8, unsigned }
     midpoint_impl! { u8, u16, unsigned }
+    widening_impl! { u8, u16, 8, unsigned }
 
     /// Checks if the value is within the ASCII range.
     ///
@@ -1173,8 +1238,8 @@ impl u16 {
         from_xe_bytes_doc = "",
         bound_condition = "",
     }
-    widening_impl! { u16, u32, 16, unsigned }
     midpoint_impl! { u16, u32, unsigned }
+    widening_impl! { u16, u32, 16, unsigned }
 
     /// Checks if the value is a Unicode surrogate code point, which are disallowed values for [`char`].
     ///
@@ -1222,8 +1287,8 @@ impl u32 {
         from_xe_bytes_doc = "",
         bound_condition = "",
     }
-    widening_impl! { u32, u64, 32, unsigned }
     midpoint_impl! { u32, u64, unsigned }
+    widening_impl! { u32, u64, 32, unsigned }
 }
 
 impl u64 {
@@ -1273,6 +1338,7 @@ impl u128 {
         bound_condition = "",
     }
     midpoint_impl! { u128, unsigned }
+    widening_impl! { u128, u64, 64, unsigned naive }
 }
 
 #[cfg(target_pointer_width = "16")]
@@ -1296,8 +1362,8 @@ impl usize {
         from_xe_bytes_doc = usize_isize_from_xe_bytes_doc!(),
         bound_condition = " on 16-bit targets",
     }
-    widening_impl! { usize, u32, 16, unsigned }
     midpoint_impl! { usize, u32, unsigned }
+    widening_impl! { usize, u32, 16, unsigned }
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -1321,8 +1387,8 @@ impl usize {
         from_xe_bytes_doc = usize_isize_from_xe_bytes_doc!(),
         bound_condition = " on 32-bit targets",
     }
-    widening_impl! { usize, u64, 32, unsigned }
     midpoint_impl! { usize, u64, unsigned }
+    widening_impl! { usize, u64, 32, unsigned }
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -1346,8 +1412,8 @@ impl usize {
         from_xe_bytes_doc = usize_isize_from_xe_bytes_doc!(),
         bound_condition = " on 64-bit targets",
     }
-    widening_impl! { usize, u128, 64, unsigned }
     midpoint_impl! { usize, u128, unsigned }
+    widening_impl! { usize, u128, 64, unsigned }
 }
 
 impl usize {
