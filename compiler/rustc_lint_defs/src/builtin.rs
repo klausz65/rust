@@ -745,7 +745,7 @@ declare_lint! {
     /// ### Explanation
     ///
     /// Large arras may cause stack overflow due to the limited size of the
-    /// stack on most platforms. 
+    /// stack on most platforms.
     pub DANGEROUS_STACK_ALLOCATION,
     Warn,
     "Detects dangerous stack allocations at the limit of most architectures"
