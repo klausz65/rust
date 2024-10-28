@@ -40,7 +40,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use rustc_data_structures::fingerprint::{Fingerprint, PackedFingerprint};
-use rustc_data_structures::fx::FxIndexMap;
+use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::outline;
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_data_structures::sync::Lock;
@@ -472,7 +472,7 @@ struct EncoderState<D: Deps> {
     encoder: FileEncoder,
     total_node_count: usize,
     total_edge_count: usize,
-    stats: Option<FxIndexMap<DepKind, Stat>>,
+    stats: Option<FxHashMap<DepKind, Stat>>,
 
     /// Stores the number of times we've encoded each dep kind.
     kind_stats: Vec<u32>,
@@ -486,7 +486,7 @@ impl<D: Deps> EncoderState<D> {
             encoder,
             total_edge_count: 0,
             total_node_count: 0,
-            stats: record_stats.then(FxIndexMap::default),
+            stats: record_stats.then(FxHashMap::default),
             kind_stats: iter::repeat(0).take(D::DEP_KIND_MAX as usize + 1).collect(),
             marker: PhantomData,
         }
@@ -651,6 +651,8 @@ impl<D: Deps> GraphEncoder<D> {
         let mut status = self.status.lock();
         let status = status.as_mut().unwrap();
         if let Some(record_stats) = &status.stats {
+            // `stats` is sorted below so we can allow this lint here.
+            #[allow(rustc::potential_query_instability)]
             let mut stats: Vec<_> = record_stats.values().collect();
             stats.sort_by_key(|s| -(s.node_counter as i64));
 
