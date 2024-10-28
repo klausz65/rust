@@ -269,6 +269,8 @@ pub trait Interner:
 
     fn trait_may_be_implemented_via_object(self, trait_def_id: Self::DefId) -> bool;
 
+    fn trait_has_impl_which_may_shadow_dyn(self, trait_def_id: Self::DefId) -> bool;
+
     fn is_impl_trait_in_trait(self, def_id: Self::DefId) -> bool;
 
     fn delay_bug(self, msg: impl ToString) -> Self::ErrorGuaranteed;
