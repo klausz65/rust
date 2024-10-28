@@ -26,6 +26,12 @@ fn c() -> [fn(bool) -> bool; 2] {
     fs
 }
 
+fn call_by_ptr() {
+    let ptr: fn(u8, u8) -> u8 = std::intrinsics::wrapping_add::<u8>;
+    let res = ptr(u8::MAX, 1);
+    assert_eq!(res, 0);
+}
+
 fn main() {
     unsafe {
         assert_eq!(a()(-1), !0);
@@ -35,4 +41,6 @@ fn main() {
     let [likely_ptr, unlikely_ptr] = c();
     assert!(likely_ptr(true));
     assert!(unlikely_ptr(true));
+
+    call_by_ptr();
 }
