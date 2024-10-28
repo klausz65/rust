@@ -1,4 +1,5 @@
 use std::assert_matches::assert_matches;
+use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -6,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use rustc_data_structures::fingerprint::Fingerprint;
-use rustc_data_structures::fx::{FxHashMap, FxHashSet, FxIndexMap, IndexEntry};
+use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::profiling::{QueryInvocationId, SelfProfilerRef};
 use rustc_data_structures::sharded::{self, Sharded};
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
@@ -1053,7 +1054,7 @@ rustc_index::newtype_index! {
 /// first, and `data` second.
 pub(super) struct CurrentDepGraph<D: Deps> {
     encoder: GraphEncoder<D>,
-    new_node_to_index: Sharded<FxIndexMap<DepNode, DepNodeIndex>>,
+    new_node_to_index: Sharded<FxHashMap<DepNode, DepNodeIndex>>,
     prev_index_to_index: Lock<IndexVec<SerializedDepNodeIndex, Option<DepNodeIndex>>>,
 
     /// This is used to verify that fingerprints do not change between the creation of a node
@@ -1123,7 +1124,7 @@ impl<D: Deps> CurrentDepGraph<D> {
                 previous,
             ),
             new_node_to_index: Sharded::new(|| {
-                FxIndexMap::with_capacity_and_hasher(
+                FxHashMap::with_capacity_and_hasher(
                     new_node_count_estimate / sharded::shards(),
                     Default::default(),
                 )
@@ -1158,8 +1159,8 @@ impl<D: Deps> CurrentDepGraph<D> {
         current_fingerprint: Fingerprint,
     ) -> DepNodeIndex {
         let dep_node_index = match self.new_node_to_index.lock_shard_by_value(&key).entry(key) {
-            IndexEntry::Occupied(entry) => *entry.get(),
-            IndexEntry::Vacant(entry) => {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
                 let dep_node_index = self.encoder.send(key, current_fingerprint, edges);
                 entry.insert(dep_node_index);
                 dep_node_index
@@ -1388,6 +1389,8 @@ fn panic_on_forbidden_read<D: Deps>(data: &DepGraphData<D>, dep_node_index: DepN
     if dep_node.is_none() {
         // Try to find it among the new nodes
         for shard in data.current.new_node_to_index.lock_shards() {
+            // This is OK, as there can be at most one `dep_node` with the given `dep_node_index`
+            #[allow(rustc::potential_query_instability)]
             if let Some((node, _)) = shard.iter().find(|(_, index)| **index == dep_node_index) {
                 dep_node = Some(*node);
                 break;
