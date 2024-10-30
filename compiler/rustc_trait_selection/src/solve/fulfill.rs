@@ -461,8 +461,11 @@ impl<'tcx> ProofTreeVisitor<'tcx> for BestObligation<'tcx> {
         // for normalizes-to.
         let pred_kind = goal.goal().predicate.kind();
         let child_mode = match pred_kind.skip_binder() {
-            ty::PredicateKind::Clause(ty::ClauseKind::Trait(parent_trait_pred)) => {
-                ChildMode::Trait(pred_kind.rebind(parent_trait_pred))
+            ty::PredicateKind::Clause(ty::ClauseKind::Trait(pred)) => {
+                ChildMode::Trait(pred_kind.rebind(pred))
+            }
+            ty::PredicateKind::Clause(ty::ClauseKind::HostEffect(pred)) => {
+                ChildMode::Host(pred_kind.rebind(pred))
             }
             ty::PredicateKind::NormalizesTo(normalizes_to)
                 if matches!(
@@ -491,7 +494,7 @@ impl<'tcx> ProofTreeVisitor<'tcx> for BestObligation<'tcx> {
 
             let obligation;
             match (child_mode, nested_goal.source()) {
-                (ChildMode::Trait(_), GoalSource::Misc) => {
+                (ChildMode::Trait(_) | ChildMode::Host(_), GoalSource::Misc) => {
                     continue;
                 }
                 (ChildMode::Trait(parent_trait_pred), GoalSource::ImplWhereBound) => {
@@ -503,6 +506,10 @@ impl<'tcx> ProofTreeVisitor<'tcx> for BestObligation<'tcx> {
                         parent_trait_pred,
                     ));
                     impl_where_bound_count += 1;
+                }
+                (ChildMode::Host(_), GoalSource::ImplWhereBound) => {
+                    // TODO:
+                    obligation = make_obligation(self.obligation.cause.clone());
                 }
                 // Skip over a higher-ranked predicate.
                 (_, GoalSource::InstantiateHigherRanked) => {
@@ -562,6 +569,11 @@ enum ChildMode<'tcx> {
     // and skip all `GoalSource::Misc`, which represent useless obligations
     // such as alias-eq which may not hold.
     Trait(ty::PolyTraitPredicate<'tcx>),
+    // Try to derive an `ObligationCause::{ImplDerived,BuiltinDerived}`,
+    // and skip all `GoalSource::Misc`, which represent useless obligations
+    // such as alias-eq which may not hold.
+    #[expect(dead_code)]
+    Host(ty::Binder<'tcx, ty::HostEffectPredicate<'tcx>>),
     // Skip trying to derive an `ObligationCause` from this obligation, and
     // report *all* sub-obligations as if they came directly from the parent
     // obligation.

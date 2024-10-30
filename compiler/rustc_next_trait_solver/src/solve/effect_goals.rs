@@ -101,7 +101,8 @@ where
                 |ecx| {
                     // Const conditions must hold for the implied const bound to hold.
                     ecx.add_goals(
-                        GoalSource::Misc,
+                        // FIXME: Are these where clauses? Yes?
+                        GoalSource::ImplWhereBound,
                         cx.const_conditions(alias_ty.def_id)
                             .iter_instantiated(cx, alias_ty.args)
                             .map(|trait_ref| {
