@@ -3465,6 +3465,59 @@ impl<'a, 'tcx> TypeErrCtxt<'a, 'tcx> {
                     )
                 });
             }
+            ObligationCauseCode::ImplDerivedHost(ref data) => {
+                let self_ty =
+                    self.resolve_vars_if_possible(data.derived.parent_host_pred.self_ty());
+                let msg = format!(
+                    "required for `{self_ty}` to implement `{} {}`",
+                    data.derived.parent_host_pred.skip_binder().constness,
+                    data.derived
+                        .parent_host_pred
+                        .map_bound(|pred| pred.trait_ref)
+                        .print_only_trait_path(),
+                );
+                match tcx.hir().get_if_local(data.impl_def_id) {
+                    Some(Node::Item(hir::Item {
+                        kind: hir::ItemKind::Impl(hir::Impl { of_trait, self_ty, .. }),
+                        ..
+                    })) => {
+                        let mut spans = vec![self_ty.span];
+                        spans.extend(of_trait.as_ref().map(|t| t.path.span));
+                        let mut spans: MultiSpan = spans.into();
+                        spans.push_span_label(data.span, "unsatisfied trait bound introduced here");
+                        err.span_note(spans, msg);
+                    }
+                    _ => {
+                        err.note(msg);
+                    }
+                }
+                ensure_sufficient_stack(|| {
+                    self.note_obligation_cause_code(
+                        body_id,
+                        err,
+                        data.derived.parent_host_pred,
+                        param_env,
+                        &data.derived.parent_code,
+                        obligated_types,
+                        seen_requirements,
+                        long_ty_file,
+                    )
+                });
+            }
+            ObligationCauseCode::BuiltinDerivedHost(ref data) => {
+                ensure_sufficient_stack(|| {
+                    self.note_obligation_cause_code(
+                        body_id,
+                        err,
+                        data.parent_host_pred,
+                        param_env,
+                        &data.parent_code,
+                        obligated_types,
+                        seen_requirements,
+                        long_ty_file,
+                    )
+                });
+            }
             ObligationCauseCode::WellFormedDerived(ref data) => {
                 let parent_trait_ref = self.resolve_vars_if_possible(data.parent_trait_pred);
                 let parent_predicate = parent_trait_ref;

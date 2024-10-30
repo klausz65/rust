@@ -482,6 +482,7 @@ impl<'tcx> ProofTreeVisitor<'tcx> for BestObligation<'tcx> {
         };
 
         let mut impl_where_bound_count = 0;
+        let mut impl_const_condition_bound_count = 0;
         for nested_goal in candidate.instantiate_nested_goals(self.span()) {
             trace!(nested_goal = ?(nested_goal.goal(), nested_goal.source(), nested_goal.result()));
 
@@ -507,9 +508,15 @@ impl<'tcx> ProofTreeVisitor<'tcx> for BestObligation<'tcx> {
                     ));
                     impl_where_bound_count += 1;
                 }
-                (ChildMode::Host(_), GoalSource::ImplWhereBound) => {
-                    // TODO:
-                    obligation = make_obligation(self.obligation.cause.clone());
+                (ChildMode::Host(parent_host_pred), GoalSource::ImplWhereBound) => {
+                    obligation = make_obligation(derive_host_cause(
+                        tcx,
+                        candidate.kind(),
+                        self.obligation.cause.clone(),
+                        impl_const_condition_bound_count,
+                        parent_host_pred,
+                    ));
+                    impl_const_condition_bound_count += 1;
                 }
                 // Skip over a higher-ranked predicate.
                 (_, GoalSource::InstantiateHigherRanked) => {
@@ -572,7 +579,6 @@ enum ChildMode<'tcx> {
     // Try to derive an `ObligationCause::{ImplDerived,BuiltinDerived}`,
     // and skip all `GoalSource::Misc`, which represent useless obligations
     // such as alias-eq which may not hold.
-    #[expect(dead_code)]
     Host(ty::Binder<'tcx, ty::HostEffectPredicate<'tcx>>),
     // Skip trying to derive an `ObligationCause` from this obligation, and
     // report *all* sub-obligations as if they came directly from the parent
@@ -610,6 +616,55 @@ fn derive_cause<'tcx>(
             result: _,
         } => {
             cause = cause.derived_cause(parent_trait_pred, ObligationCauseCode::BuiltinDerived);
+        }
+        _ => {}
+    };
+    cause
+}
+
+fn derive_host_cause<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    candidate_kind: inspect::ProbeKind<TyCtxt<'tcx>>,
+    mut cause: ObligationCause<'tcx>,
+    idx: usize,
+    parent_host_pred: ty::Binder<'tcx, ty::HostEffectPredicate<'tcx>>,
+) -> ObligationCause<'tcx> {
+    match candidate_kind {
+        inspect::ProbeKind::TraitCandidate {
+            source: CandidateSource::Impl(impl_def_id),
+            result: _,
+        } => {
+            if let Some((_, span)) = tcx
+                .predicates_of(impl_def_id)
+                .instantiate_identity(tcx)
+                .into_iter()
+                .chain(tcx.const_conditions(impl_def_id).instantiate_identity(tcx).into_iter().map(
+                    |(trait_ref, span)| {
+                        (
+                            trait_ref.to_host_effect_clause(
+                                tcx,
+                                parent_host_pred.skip_binder().constness,
+                            ),
+                            span,
+                        )
+                    },
+                ))
+                .nth(idx)
+            {
+                cause =
+                    cause.derived_host_cause(parent_host_pred, |derived| {
+                        ObligationCauseCode::ImplDerivedHost(Box::new(
+                            traits::ImplDerivedHostCause { derived, impl_def_id, span },
+                        ))
+                    })
+            }
+        }
+        inspect::ProbeKind::TraitCandidate {
+            source: CandidateSource::BuiltinImpl(..),
+            result: _,
+        } => {
+            cause =
+                cause.derived_host_cause(parent_host_pred, ObligationCauseCode::BuiltinDerivedHost);
         }
         _ => {}
     };
