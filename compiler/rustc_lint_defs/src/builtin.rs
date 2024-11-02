@@ -734,7 +734,7 @@ declare_lint! {
     /// }
     /// ```
     ///
-    /// This will produce:
+    /// {{produces}}
     ///
     /// ```text
     /// warning: allocation of size: 1 GiB  exceeds most system architecture limits
