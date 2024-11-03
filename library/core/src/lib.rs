@@ -110,6 +110,7 @@
 #![cfg_attr(bootstrap, feature(const_fmt_arguments_new))]
 #![feature(array_ptr_get)]
 #![feature(asm_experimental_arch)]
+#![feature(bigint_helper_methods)]
 #![feature(const_align_of_val)]
 #![feature(const_align_of_val_raw)]
 #![feature(const_align_offset)]
