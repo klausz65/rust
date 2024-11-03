@@ -126,6 +126,15 @@ impl<'tcx> ObligationCause<'tcx> {
         self
     }
 
+    pub fn derived_host_cause(
+        mut self,
+        parent_host_pred: ty::Binder<'tcx, ty::HostEffectPredicate<'tcx>>,
+        variant: impl FnOnce(DerivedHostCause<'tcx>) -> ObligationCauseCode<'tcx>,
+    ) -> ObligationCause<'tcx> {
+        self.code = variant(DerivedHostCause { parent_host_pred, parent_code: self.code }).into();
+        self
+    }
+
     pub fn to_constraint_category(&self) -> ConstraintCategory<'tcx> {
         match self.code() {
             ObligationCauseCode::MatchImpl(cause, _) => cause.to_constraint_category(),
@@ -269,6 +278,14 @@ pub enum ObligationCauseCode<'tcx> {
 
     /// Derived obligation for WF goals.
     WellFormedDerived(DerivedCause<'tcx>),
+
+    /// Derived obligation (i.e. `where` clause) on an user-provided impl
+    /// or a trait alias.
+    ImplDerivedHost(Box<ImplDerivedHostCause<'tcx>>),
+
+    /// Derived obligation (i.e. `where` clause) on an user-provided impl
+    /// or a trait alias.
+    BuiltinDerivedHost(DerivedHostCause<'tcx>),
 
     /// Derived obligation refined to point at a specific argument in
     /// a call or method expression.
@@ -429,20 +446,6 @@ pub enum WellFormedLoc {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
-#[derive(TypeVisitable, TypeFoldable)]
-pub struct ImplDerivedCause<'tcx> {
-    pub derived: DerivedCause<'tcx>,
-    /// The `DefId` of the `impl` that gave rise to the `derived` obligation.
-    /// If the `derived` obligation arose from a trait alias, which conceptually has a synthetic impl,
-    /// then this will be the `DefId` of that trait alias. Care should therefore be taken to handle
-    /// that exceptional case where appropriate.
-    pub impl_or_alias_def_id: DefId,
-    /// The index of the derived predicate in the parent impl's predicates.
-    pub impl_def_predicate_index: Option<usize>,
-    pub span: Span,
-}
-
 impl<'tcx> ObligationCauseCode<'tcx> {
     /// Returns the base obligation, ignoring derived obligations.
     pub fn peel_derives(&self) -> &Self {
@@ -544,6 +547,42 @@ pub struct DerivedCause<'tcx> {
 
     /// The parent trait had this cause.
     pub parent_code: InternedObligationCauseCode<'tcx>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
+#[derive(TypeVisitable, TypeFoldable)]
+pub struct ImplDerivedCause<'tcx> {
+    pub derived: DerivedCause<'tcx>,
+    /// The `DefId` of the `impl` that gave rise to the `derived` obligation.
+    /// If the `derived` obligation arose from a trait alias, which conceptually has a synthetic impl,
+    /// then this will be the `DefId` of that trait alias. Care should therefore be taken to handle
+    /// that exceptional case where appropriate.
+    pub impl_or_alias_def_id: DefId,
+    /// The index of the derived predicate in the parent impl's predicates.
+    pub impl_def_predicate_index: Option<usize>,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
+#[derive(TypeVisitable, TypeFoldable)]
+pub struct DerivedHostCause<'tcx> {
+    /// The trait predicate of the parent obligation that led to the
+    /// current obligation. Note that only trait obligations lead to
+    /// derived obligations, so we just store the trait predicate here
+    /// directly.
+    pub parent_host_pred: ty::Binder<'tcx, ty::HostEffectPredicate<'tcx>>,
+
+    /// The parent trait had this cause.
+    pub parent_code: InternedObligationCauseCode<'tcx>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
+#[derive(TypeVisitable, TypeFoldable)]
+pub struct ImplDerivedHostCause<'tcx> {
+    pub derived: DerivedHostCause<'tcx>,
+    /// The `DefId` of the `impl` that gave rise to the `derived` obligation.
+    pub impl_def_id: DefId,
+    pub span: Span,
 }
 
 #[derive(Clone, Debug, TypeVisitable)]
