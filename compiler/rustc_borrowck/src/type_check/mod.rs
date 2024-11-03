@@ -41,6 +41,7 @@ use rustc_span::source_map::Spanned;
 use rustc_span::symbol::sym;
 use rustc_span::{DUMMY_SP, Span};
 use rustc_target::abi::{FIRST_VARIANT, FieldIdx};
+use rustc_target::spec::abi::Abi;
 use rustc_trait_selection::traits::query::type_op::custom::{
     CustomTypeOp, scrape_region_constraints,
 };
@@ -2027,6 +2028,16 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                                 );
                             };
                         }
+
+                        // NOTE(eddyb) see comment on `prepare_fn_sig_for_reify`
+                        // in `rustc_typeck::check::coercion`.
+                        let src_sig = src_sig.map_bound(|mut sig| -> _ {
+                            if matches!(sig.abi, Abi::RustIntrinsic) {
+                                sig.abi = Abi::Rust;
+                            }
+
+                            sig
+                        });
 
                         let src_ty = Ty::new_fn_ptr(tcx, src_sig);
                         // HACK: We want to assert that the signature of the source fn is
