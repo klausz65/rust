@@ -212,7 +212,7 @@ fn parse_custom_message(parser: &mut Parser<'_>) -> Option<TokenStream> {
     if !ts.is_empty() { Some(ts) } else { None }
 }
 
-pub fn use_assert_2024(mut span: Span) -> bool {
+pub(crate) fn use_assert_2024(mut span: Span) -> bool {
     // To determine the edition, we check the first span up the expansion
     // stack that isn't internal.
     loop {
