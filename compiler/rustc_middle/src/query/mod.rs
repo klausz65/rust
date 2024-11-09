@@ -43,7 +43,7 @@ use rustc_session::lint::LintExpectationId;
 use rustc_span::def_id::LOCAL_CRATE;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Symbol;
-use rustc_span::{LocalExpnId, DUMMY_SP, Span};
+use rustc_span::{DUMMY_SP, LocalExpnId, Span};
 use rustc_target::spec::PanicStrategy;
 use {rustc_abi as abi, rustc_ast as ast, rustc_attr as attr, rustc_hir as hir};
 
