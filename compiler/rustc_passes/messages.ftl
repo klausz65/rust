@@ -49,6 +49,10 @@ passes_attr_crate_level =
 passes_attr_only_in_functions =
     `{$attr}` attribute can only be used on functions
 
+passes_attribute_not_allowed =
+    The `[instruction_set]` attribute contains an invalid argument
+    .label = Invalid argument in the `[instruction_set]` attribute
+
 passes_autodiff_attr =
     `#[autodiff]` should be applied to a function
     .label = not a function
@@ -411,6 +415,10 @@ passes_invalid_instruction_set =
 passes_invalid_macro_export_arguments = `{$name}` isn't a valid `#[macro_export]` argument
 
 passes_invalid_macro_export_arguments_too_many_items = `#[macro_export]` can only take 1 or 0 arguments
+
+passes_invalid_target_for_instruction_set =
+    The `[instruction_set]` attribute is only allowed on functions
+    .label = Invalid target for the `[instruction_set]` attribute
 
 passes_lang_item_fn = {$name ->
     [panic_impl] `#[panic_handler]`

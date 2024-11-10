@@ -1,23 +1,23 @@
-error: `[instruction_set]` attribute argument should be valid
-  --> $DIR/instruction-set.rs:9:1
+error: The `[instruction_set]` attribute is only allowed on functions
+  --> $DIR/instruction-set.rs:37:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: The `[instruction_set]` attribute is only allowed on functions
+  --> $DIR/instruction-set.rs:40:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: The `[instruction_set]` attribute is only allowed on functions
+  --> $DIR/instruction-set.rs:43:1
    |
 LL | #[instruction_set(asdfasdf)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `[instruction_set]` attribute argument should be valid
-  --> $DIR/instruction-set.rs:12:1
-   |
-LL | #[instruction_set(asdfasdf)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-error: `[instruction_set]` attribute argument should be valid
-  --> $DIR/instruction-set.rs:15:1
-   |
-LL | #[instruction_set(asdfasdf)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-error: `[instruction_set]` attribute argument should be valid
-  --> $DIR/instruction-set.rs:18:1
+  --> $DIR/instruction-set.rs:46:1
    |
 LL | #[instruction_set(asdfasdf)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

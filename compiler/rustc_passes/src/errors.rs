@@ -698,10 +698,25 @@ pub(crate) struct Linkage {
 }
 
 #[derive(Diagnostic)]
+#[diag(passes_attribute_not_allowed)]
+pub(crate) struct AttributeNotAllowed {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
 #[diag(passes_invalid_instruction_set)]
 pub(crate) struct InvalidInstructionSet {
     #[primary_span]
     pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(passes_invalid_target_for_instruction_set)]
+pub(crate) struct InvalidTargetForInstructionSet {
+    #[primary_span]
+    pub span: Span,
+    pub item_kind: &'static str,
 }
 
 #[derive(Diagnostic)]
