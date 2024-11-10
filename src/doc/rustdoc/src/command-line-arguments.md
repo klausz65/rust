@@ -100,7 +100,16 @@ mod private { // this item is private and will not be documented
 }
 ```
 
-`--document-private-items` documents all items, even if they're not public.
+`--document-private-items` causes all items to be documented as if they were `pub`.
+
+## `--document-hidden-items`: Show items that are `#[doc(hidden)]`
+
+By default, `rustdoc` does not document items that are annotated with
+[`#[doc(hidden)]`](write-documentation/the-doc-attribute.html#hidden).
+
+`--document-hidden-items` causes all items to be documented as if they did not have `#[doc(hidden)]`.
+
+items that are hidden and private will only be documented if both `--document-hidden-items` *and* `--document-private-items` are specified.
 
 ## `-L`/`--library-path`: where to look for dependencies
 
