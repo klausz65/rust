@@ -10,9 +10,8 @@ use std::collections::hash_map::Entry;
 use rustc_ast::token::TokenKind;
 use rustc_ast::tokenstream::TokenTree;
 use rustc_ast::{
-    AttrKind, AttrStyle, Attribute, LitKind, MetaItemInner, MetaItemKind, MetaItemLit, ast,
-    token::TokenKind, tokenstream::TokenTree, AttrKind, AttrStyle, Attribute, LitKind,
-    MetaItemKind, MetaItemLit, NestedMetaItem,
+    AttrKind, AttrStyle, AttrStyle, Attribute, Attribute, LitKind, LitKind, MetaItemInner,
+    MetaItemKind, MetaItemKind, MetaItemLit, MetaItemLit, NestedMetaItem, ast,
 };
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, DiagCtxtHandle, IntoDiagArg, MultiSpan, StashKey};
@@ -2407,6 +2406,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 self.dcx().emit_err(errors::AutoDiffAttr { attr_span: span });
                 self.abort.set(true);
+            }
         }
     }
 
