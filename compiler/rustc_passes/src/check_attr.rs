@@ -10,8 +10,7 @@ use std::collections::hash_map::Entry;
 use rustc_ast::token::TokenKind;
 use rustc_ast::tokenstream::TokenTree;
 use rustc_ast::{
-    AttrKind, AttrStyle, AttrStyle, Attribute, Attribute, LitKind, LitKind, MetaItemInner,
-    MetaItemKind, MetaItemKind, MetaItemLit, MetaItemLit, NestedMetaItem, ast,
+    AttrKind, AttrStyle, Attribute, LitKind, MetaItemInner, MetaItemKind, MetaItemLit, ast,
 };
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, DiagCtxtHandle, IntoDiagArg, MultiSpan, StashKey};
