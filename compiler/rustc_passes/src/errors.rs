@@ -697,15 +697,16 @@ pub(crate) struct Linkage {
     pub span: Span,
 }
 
+#[derive(Diagnostic)]
 #[diag(passes_invalid_instruction_set)]
-pub struct InvalidInstructionSet {
+pub(crate) struct InvalidInstructionSet {
     #[primary_span]
     pub span: Span,
 }
 
 #[derive(Diagnostic)]
 #[diag(passes_empty_instruction_set)]
-pub struct EmptyInstructionSet {
+pub(crate) struct EmptyInstructionSet {
     #[primary_span]
     pub span: Span,
 }
