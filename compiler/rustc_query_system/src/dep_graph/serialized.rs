@@ -651,6 +651,8 @@ impl<D: Deps> GraphEncoder<D> {
         let mut status = self.status.lock();
         let status = status.as_mut().unwrap();
         if let Some(record_stats) = &status.stats {
+            // `stats` is sorted below so we can allow this lint here.
+            #[allow(rustc::potential_query_instability)]
             let mut stats: Vec<_> = record_stats.values().collect();
             stats.sort_by_key(|s| -(s.node_counter as i64));
 

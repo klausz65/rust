@@ -1389,6 +1389,8 @@ fn panic_on_forbidden_read<D: Deps>(data: &DepGraphData<D>, dep_node_index: DepN
     if dep_node.is_none() {
         // Try to find it among the new nodes
         for shard in data.current.new_node_to_index.lock_shards() {
+            // This is OK, as there can be at most one `dep_node` with the given `dep_node_index`
+            #[allow(rustc::potential_query_instability)]
             if let Some((node, _)) = shard.iter().find(|(_, index)| **index == dep_node_index) {
                 dep_node = Some(*node);
                 break;
