@@ -266,7 +266,16 @@ By default, `rustdoc` does not document items that are annotated with
 
 `--document-hidden-items` causes all items to be documented as if they did not have `#[doc(hidden)]`.
 
-Items that are hidden and private will only be documented if both `--document-hidden-items` *and* `--document-private-items` are specified.
+Here is a table that fully describes which items are documented with each combination of `--document-hidden-items` and `--document-private-items`:
+
+
+| rustdoc flags                   | items that will be documented         |
+|---------------------------------|---------------------------------------|
+| neither flag                    | only public items that are not hidden |
+| only `--document-hidden-items`  | all public items                      |
+| only `--document-private-items` | all items that are not hidden         |
+| both flags                      | all items                             |
+
 
 ### `--markdown-before-content`: include rendered Markdown before the content
 
