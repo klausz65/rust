@@ -225,7 +225,7 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
 /// # Safety
 ///
 /// Implementations must ensure that when `.clone_to_uninit()` returns normally rather than
-/// panicking, it always leaves `*dst` initialized as a valid value of type `Self`.
+/// panicking, it always leaves `*dest` initialized as a valid value of type `Self`.
 ///
 /// # Examples
 ///
@@ -280,7 +280,7 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
 /// }
 ///
 /// unsafe impl<T: ?Sized + CloneToUninit> CloneToUninit for MyDst<T> {
-///     unsafe fn clone_to_uninit(&self, dst: *mut u8) {
+///     unsafe fn clone_to_uninit(&self, dest: *mut u8) {
 ///         let offset_of_flag = offset_of!(Self, flag);
 ///         // The offset of `self.contents` is dynamic because it depends on the alignment of T
 ///         // which can be dynamic (if `T = dyn SomeTrait`). Therefore, we have to obtain it
@@ -293,13 +293,13 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
 ///         // Since `flag` implements `Copy`, we can just copy it.
 ///         // We use `pointer::write()` instead of assignment because the destination may be
 ///         // uninitialized.
-///         dst.add(offset_of_flag).cast::<bool>().write(self.flag);
+///         dest.add(offset_of_flag).cast::<bool>().write(self.flag);
 ///
 ///         // Note: if `flag` owned any resources (i.e. had a `Drop` implementation), then we
 ///         // must prepare to drop it in case `self.contents.clone_to_uninit()` panics.
 ///         // In this simple case, where we have exactly one field for which `mem::needs_drop()`
 ///         // might be true (`contents`), we don’t need to care about cleanup or ordering.
-///         self.contents.clone_to_uninit(dst.add(offset_of_contents));
+///         self.contents.clone_to_uninit(dest.add(offset_of_contents));
 ///
 ///         // All fields of the struct have been initialized, therefore the struct is initialized,
 ///         // and we have satisfied our `unsafe impl CloneToUninit` obligations.
@@ -337,13 +337,13 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
 /// [trait object]: https://doc.rust-lang.org/reference/types/trait-object.html
 #[unstable(feature = "clone_to_uninit", issue = "126799")]
 pub unsafe trait CloneToUninit {
-    /// Performs copy-assignment from `self` to `dst`.
+    /// Performs copy-assignment from `self` to `dest`.
     ///
-    /// This is analogous to `std::ptr::write(dst.cast(), self.clone())`,
+    /// This is analogous to `std::ptr::write(dest.cast(), self.clone())`,
     /// except that `Self` may be a dynamically-sized type ([`!Sized`](Sized)).
     ///
-    /// Before this function is called, `dst` may point to uninitialized memory.
-    /// After this function is called, `dst` will point to initialized memory; it will be
+    /// Before this function is called, `dest` may point to uninitialized memory.
+    /// After this function is called, `dest` will point to initialized memory; it will be
     /// sound to create a `&Self` reference from the pointer with the [pointer metadata]
     /// from `self`.
     ///
@@ -351,8 +351,8 @@ pub unsafe trait CloneToUninit {
     ///
     /// Behavior is undefined if any of the following conditions are violated:
     ///
-    /// * `dst` must be [valid] for writes for `std::mem::size_of_val(self)` bytes.
-    /// * `dst` must be properly aligned to `std::mem::align_of_val(self)`.
+    /// * `dest` must be [valid] for writes for `std::mem::size_of_val(self)` bytes.
+    /// * `dest` must be properly aligned to `std::mem::align_of_val(self)`.
     ///
     /// [valid]: crate::ptr#safety
     /// [pointer metadata]: crate::ptr::metadata()
@@ -361,11 +361,11 @@ pub unsafe trait CloneToUninit {
     ///
     /// This function may panic. (For example, it might panic if memory allocation for a clone
     /// of a value owned by `self` fails.)
-    /// If the call panics, then `*dst` should be treated as uninitialized memory; it must not be
+    /// If the call panics, then `*dest` should be treated as uninitialized memory; it must not be
     /// read or dropped, because even if it was previously valid, it may have been partially
     /// overwritten.
     ///
-    /// The caller may also need to take care to deallocate the allocation pointed to by `dst`,
+    /// The caller may also need to take care to deallocate the allocation pointed to by `dest`,
     /// if applicable, to avoid a memory leak, and may need to take other precautions to ensure
     /// soundness in the presence of unwinding.
     ///
@@ -373,15 +373,15 @@ pub unsafe trait CloneToUninit {
     /// that might have already been created. (For example, if a `[Foo]` of length 3 is being
     /// cloned, and the second of the three calls to `Foo::clone()` unwinds, then the first `Foo`
     /// cloned should be dropped.)
-    unsafe fn clone_to_uninit(&self, dst: *mut u8);
+    unsafe fn clone_to_uninit(&self, dest: *mut u8);
 }
 
 #[unstable(feature = "clone_to_uninit", issue = "126799")]
 unsafe impl<T: Clone> CloneToUninit for T {
     #[inline]
-    unsafe fn clone_to_uninit(&self, dst: *mut u8) {
+    unsafe fn clone_to_uninit(&self, dest: *mut u8) {
         // SAFETY: we're calling a specialization with the same contract
-        unsafe { <T as self::uninit::CopySpec>::clone_one(self, dst.cast::<T>()) }
+        unsafe { <T as self::uninit::CopySpec>::clone_one(self, dest.cast::<T>()) }
     }
 }
 
@@ -389,10 +389,10 @@ unsafe impl<T: Clone> CloneToUninit for T {
 unsafe impl<T: Clone> CloneToUninit for [T] {
     #[inline]
     #[cfg_attr(debug_assertions, track_caller)]
-    unsafe fn clone_to_uninit(&self, dst: *mut u8) {
-        let dst: *mut [T] = dst.with_metadata_of(self);
+    unsafe fn clone_to_uninit(&self, dest: *mut u8) {
+        let dest: *mut [T] = dest.with_metadata_of(self);
         // SAFETY: we're calling a specialization with the same contract
-        unsafe { <T as self::uninit::CopySpec>::clone_slice(self, dst) }
+        unsafe { <T as self::uninit::CopySpec>::clone_slice(self, dest) }
     }
 }
 
@@ -400,21 +400,21 @@ unsafe impl<T: Clone> CloneToUninit for [T] {
 unsafe impl CloneToUninit for str {
     #[inline]
     #[cfg_attr(debug_assertions, track_caller)]
-    unsafe fn clone_to_uninit(&self, dst: *mut u8) {
+    unsafe fn clone_to_uninit(&self, dest: *mut u8) {
         // SAFETY: str is just a [u8] with UTF-8 invariant
-        unsafe { self.as_bytes().clone_to_uninit(dst) }
+        unsafe { self.as_bytes().clone_to_uninit(dest) }
     }
 }
 
 #[unstable(feature = "clone_to_uninit", issue = "126799")]
 unsafe impl CloneToUninit for crate::ffi::CStr {
     #[cfg_attr(debug_assertions, track_caller)]
-    unsafe fn clone_to_uninit(&self, dst: *mut u8) {
+    unsafe fn clone_to_uninit(&self, dest: *mut u8) {
         // SAFETY: For now, CStr is just a #[repr(trasnsparent)] [c_char] with some invariants.
         // And we can cast [c_char] to [u8] on all supported platforms (see: to_bytes_with_nul).
         // The pointer metadata properly preserves the length (so NUL is also copied).
         // See: `cstr_metadata_is_length_with_nul` in tests.
-        unsafe { self.to_bytes_with_nul().clone_to_uninit(dst) }
+        unsafe { self.to_bytes_with_nul().clone_to_uninit(dest) }
     }
 }
 
