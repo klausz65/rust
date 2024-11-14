@@ -209,31 +209,138 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
     _field: crate::marker::PhantomData<T>,
 }
 
-/// A generalization of [`Clone`] to dynamically-sized types stored in arbitrary containers.
+/// A generalization of [`Clone`] to [dynamically-sized types][DST] stored in arbitrary containers.
 ///
-/// This trait is implemented for all types implementing [`Clone`], and also [slices](slice) of all
-/// such types. You may also implement this trait to enable cloning trait objects and custom DSTs
-/// (structures containing dynamically-sized fields).
+/// This trait is implemented for all types implementing [`Clone`], [slices](slice) of all
+/// such types, and other dynamically-sized types in the standard library.
+/// You may also implement this trait to enable cloning custom DSTs
+/// (structures containing dynamically-sized fields), or use it as a supertrait to enable
+/// cloning a [trait object].
+///
+/// This trait is normally used via operations on container types which support DSTs,
+/// so you should not typically need to call `.clone_to_uninit()` explicitly except when
+/// implementing such a container or otherwise performing explicit management of an allocation,
+/// or when implementing `CloneToUninit` itself.
 ///
 /// # Safety
 ///
-/// Implementations must ensure that when `.clone_to_uninit(dst)` returns normally rather than
+/// Implementations must ensure that when `.clone_to_uninit()` returns normally rather than
 /// panicking, it always leaves `*dst` initialized as a valid value of type `Self`.
 ///
-/// # See also
+/// # Examples
 ///
-/// * [`Clone::clone_from`] is a safe function which may be used instead when `Self` is a [`Sized`]
+// FIXME(#126799): when `Box::clone` allows use of `CloneToUninit`, rewrite these examples with it
+// since `Rc` is a distraction.
+///
+/// If you are defining a trait, you can add `CloneToUninit` as a supertrait to enable cloning of
+/// `dyn` values of your trait:
+///
+/// ```
+/// #![feature(clone_to_uninit)]
+/// use std::rc::Rc;
+///
+/// trait Foo: std::fmt::Debug + std::clone::CloneToUninit {
+///     fn modify(&mut self);
+///     fn value(&self) -> i32;
+/// }
+///
+/// impl Foo for i32 {
+///     fn modify(&mut self) {
+///         *self *= 10;
+///     }
+///     fn value(&self) -> i32 {
+///         *self
+///     }
+/// }
+///
+/// let first: Rc<dyn Foo> = Rc::new(1234);
+///
+/// let mut second = first.clone();
+/// Rc::make_mut(&mut second).modify(); // make_mut() will call clone_to_uninit()
+///
+/// assert_eq!(first.value(), 1234);
+/// assert_eq!(second.value(), 12340);
+/// ```
+///
+/// The following is an example of implementing `CloneToUninit` for a custom DST.
+/// (It is essentially a limited form of what `derive(CloneToUninit)` would do,
+/// if such a derive macro existed.)
+///
+/// ```
+/// #![feature(clone_to_uninit)]
+/// #![feature(ptr_sub_ptr)]
+/// use std::clone::CloneToUninit;
+/// use std::mem::offset_of;
+/// use std::rc::Rc;
+///
+/// #[derive(PartialEq)]
+/// struct MyDst<T: ?Sized> {
+///     flag: bool,
+///     contents: T,
+/// }
+///
+/// unsafe impl<T: ?Sized + CloneToUninit> CloneToUninit for MyDst<T> {
+///     unsafe fn clone_to_uninit(&self, dst: *mut u8) {
+///         let offset_of_flag = offset_of!(Self, flag);
+///         // The offset of `self.contents` is dynamic because it depends on the alignment of T
+///         // which can be dynamic (if `T = dyn SomeTrait`). Therefore, we have to obtain it
+///         // dynamically by examining `self`.
+///         let offset_of_contents =
+///             (&raw const self.contents)
+///                 .cast::<u8>()
+///                 .sub_ptr((&raw const *self).cast::<u8>());
+///
+///         // Since `flag` implements `Copy`, we can just copy it.
+///         // We use `pointer::write()` instead of assignment because the destination may be
+///         // uninitialized.
+///         dst.add(offset_of_flag).cast::<bool>().write(self.flag);
+///
+///         // Note: if `flag` owned any resources (i.e. had a `Drop` implementation), then we
+///         // must prepare to drop it in case `self.contents.clone_to_uninit()` panics.
+///         // In this simple case, where we have exactly one field for which `mem::needs_drop()`
+///         // might be true (`contents`), we don’t need to care about cleanup or ordering.
+///         self.contents.clone_to_uninit(dst.add(offset_of_contents));
+///
+///         // All fields of the struct have been initialized, therefore the struct is initialized,
+///         // and we have satisfied our `unsafe impl CloneToUninit` obligations.
+///     }
+/// }
+///
+/// fn main() {
+///     // Construct MyDst<[u8; 4]>, then coerce to MyDst<[u8]>.
+///     let first: Rc<MyDst<[u8]>> = Rc::new(MyDst {
+///         flag: true,
+///         contents: [1, 2, 3, 4],
+///     });
+///
+///     let mut second = first.clone();
+///     // make_mut() will call clone_to_uninit().
+///     for elem in Rc::make_mut(&mut second).contents.iter_mut() {
+///         *elem *= 10;
+///     }
+///
+///     assert_eq!(first.contents, [1, 2, 3, 4]);
+///     assert_eq!(second.contents, [10, 20, 30, 40]);
+/// }
+/// ```
+///
+/// # See Also
+///
+/// * [`Clone::clone_from`] is a safe function which may be used instead when [`Self: Sized`](Sized)
 ///   and the destination is already initialized; it may be able to reuse allocations owned by
-///   the destination.
+///   the destination, whereas `clone_to_uninit` cannot, since its destination is assumed to be
+///   uninitialized.
 /// * [`ToOwned`], which allocates a new destination container.
 ///
 /// [`ToOwned`]: ../../std/borrow/trait.ToOwned.html
+/// [DST]: https://doc.rust-lang.org/reference/dynamically-sized-types.html
+/// [trait object]: https://doc.rust-lang.org/reference/types/trait-object.html
 #[unstable(feature = "clone_to_uninit", issue = "126799")]
 pub unsafe trait CloneToUninit {
     /// Performs copy-assignment from `self` to `dst`.
     ///
     /// This is analogous to `std::ptr::write(dst.cast(), self.clone())`,
-    /// except that `self` may be a dynamically-sized type ([`!Sized`](Sized)).
+    /// except that `Self` may be a dynamically-sized type ([`!Sized`](Sized)).
     ///
     /// Before this function is called, `dst` may point to uninitialized memory.
     /// After this function is called, `dst` will point to initialized memory; it will be
