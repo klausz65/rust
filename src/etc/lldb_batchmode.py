@@ -40,7 +40,7 @@ def print_debug(s):
 
 def normalize_whitespace(s):
     """Replace newlines, tabs, multiple spaces, etc with exactly one space"""
-    return re.sub("\s+", " ", s)
+    return re.sub("\\s+", " ", s)
 
 
 def breakpoint_callback(frame, bp_loc, dict):
@@ -208,7 +208,7 @@ try:
 
     for line in script_file:
         command = line.strip()
-        if command == "run" or command == "r" or re.match("^process\s+launch.*", command):
+        if command == "run" or command == "r" or re.match("^process\\s+launch.*", command):
             # Before starting to run the program, let the thread sleep a bit, so all
             # breakpoint added events can be processed
             time.sleep(0.5)

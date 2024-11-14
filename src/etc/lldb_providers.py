@@ -660,6 +660,15 @@ class StdHashMapSyntheticProvider:
         return True
 
 
+def get_rc_inner(valobj, is_atomic):
+    data_ptr = unwrap_unique_or_non_null(valobj.GetChildMemberWithName("ptr"))
+    inner_type = valobj.type.fields[1].type.template_args[0]
+    data_offset = inner_type.fields[-1].byte_offset
+    inner_address = data_ptr.GetValueAsAddress() - data_offset
+
+    return data_ptr.CreateValueFromAddress("inner", inner_address, inner_type)
+
+
 def StdRcSummaryProvider(valobj, dict):
     # type: (SBValue, dict) -> str
     strong = valobj.GetChildMemberWithName("strong").GetValueAsUnsigned()
@@ -670,7 +679,7 @@ def StdRcSummaryProvider(valobj, dict):
 class StdRcSyntheticProvider:
     """Pretty-printer for alloc::rc::Rc<T> and alloc::sync::Arc<T>
 
-    struct Rc<T> { ptr: NonNull<RcInner<T>>, ... }
+    struct Rc<T> { ptr: NonNull<T>, ... }
     rust 1.31.1: struct NonNull<T> { pointer: NonZero<*const T> }
     rust 1.33.0: struct NonNull<T> { pointer: *const T }
     struct NonZero<T>(T)
@@ -678,7 +687,7 @@ class StdRcSyntheticProvider:
     struct Cell<T> { value: UnsafeCell<T> }
     struct UnsafeCell<T> { value: T }
 
-    struct Arc<T> { ptr: NonNull<ArcInner<T>>, ... }
+    struct Arc<T> { ptr: NonNull<T>, ... }
     struct ArcInner<T> { strong: atomic::AtomicUsize, weak: atomic::AtomicUsize, data: T }
     struct AtomicUsize { v: UnsafeCell<usize> }
     """
@@ -687,14 +696,19 @@ class StdRcSyntheticProvider:
         # type: (SBValue, dict, bool) -> StdRcSyntheticProvider
         self.valobj = valobj
 
-        self.ptr = unwrap_unique_or_non_null(self.valobj.GetChildMemberWithName("ptr"))
+        self.inner = get_rc_inner(valobj, is_atomic)
 
-        self.value = self.ptr.GetChildMemberWithName("data" if is_atomic else "value")
+        self.value = self.inner.GetChildMemberWithName("data" if is_atomic else "value")
 
-        self.strong = self.ptr.GetChildMemberWithName("strong").GetChildAtIndex(
-            0).GetChildMemberWithName("value")
-        self.weak = self.ptr.GetChildMemberWithName("weak").GetChildAtIndex(
-            0).GetChildMemberWithName("value")
+        if is_atomic:
+            def read_cell(x):
+                return x.GetChildAtIndex(0).GetChildAtIndex(0)
+        else:
+            def read_cell(x):
+                return x.GetChildAtIndex(0)
+
+        self.strong = read_cell(self.inner.GetChildMemberWithName("strong"))
+        self.weak = read_cell(self.inner.GetChildMemberWithName("weak"))
 
         self.value_builder = ValueBuilder(valobj)
 
