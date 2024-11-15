@@ -65,6 +65,7 @@ use crate::collections::TryReserveError;
 use crate::str::{self, CharIndices, Chars, Utf8Error, from_utf8_unchecked_mut};
 #[cfg(not(no_global_oom_handling))]
 use crate::str::{FromStr, from_boxed_utf8_unchecked};
+use crate::vec;
 use crate::vec::Vec;
 
 /// A UTF-8–encoded, growable string.
@@ -1955,7 +1956,7 @@ impl String {
     /// Placeholder docs.
     #[unstable(feature = "into_chars", reason = "new API", issue = "none")]
     pub fn into_chars(self) -> IntoChars {
-        IntoChars { bytes: self.into_bytes() }
+        IntoChars { bytes: self.into_bytes().into_iter() }
     }
 
     /// Removes the specified range in the string,
@@ -3103,7 +3104,7 @@ impl fmt::Write for String {
 /// Placeholder docs.
 #[unstable(feature = "into_chars", reason = "new API", issue = "none")]
 pub struct IntoChars {
-    bytes: Vec<u8>,
+    bytes: vec::IntoIter<u8>,
 }
 
 #[unstable(feature = "into_chars", reason = "new API", issue = "none")]
@@ -3151,7 +3152,8 @@ impl Iterator for IntoChars {
             None => None,
             Some((_, ch)) => {
                 let offset = iter.offset();
-                drop(self.bytes.drain(..offset));
+                // SAFETY: `offset` is a valid index.
+                let _ = self.bytes.advance_by(offset);
                 Some(ch)
             }
         }
@@ -3171,11 +3173,13 @@ impl Iterator for IntoChars {
 impl DoubleEndedIterator for IntoChars {
     #[inline]
     fn next_back(&mut self) -> Option<char> {
+        let len = self.as_str().len();
         let mut iter = self.iter();
         match iter.next_back() {
             None => None,
             Some((idx, ch)) => {
-                self.bytes.truncate(idx);
+                // SAFETY: `idx` is a valid index.
+                let _ = self.bytes.advance_back_by(len - idx);
                 Some(ch)
             }
         }
