@@ -62,7 +62,7 @@ use crate::alloc::Allocator;
 use crate::borrow::{Cow, ToOwned};
 use crate::boxed::Box;
 use crate::collections::TryReserveError;
-use crate::str::{self, Chars, Utf8Error, from_utf8_unchecked_mut};
+use crate::str::{self, CharIndices, Chars, Utf8Error, from_utf8_unchecked_mut};
 #[cfg(not(no_global_oom_handling))]
 use crate::str::{FromStr, from_boxed_utf8_unchecked};
 use crate::vec::Vec;
@@ -1952,6 +1952,12 @@ impl String {
         Drain { start, end, iter: chars_iter, string: self_ptr }
     }
 
+    /// Placeholder docs.
+    #[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+    pub fn into_chars(self) -> IntoChars {
+        IntoChars { bytes: self.into_bytes() }
+    }
+
     /// Removes the specified range in the string,
     /// and replaces it with the given string.
     /// The given string doesn't need to be the same length as the range.
@@ -3093,6 +3099,91 @@ impl fmt::Write for String {
         Ok(())
     }
 }
+
+/// Placeholder docs.
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+pub struct IntoChars {
+    bytes: Vec<u8>,
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl fmt::Debug for IntoChars {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("IntoChars").field(&self.as_str()).finish()
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl IntoChars {
+    /// Placeholder docs.
+    pub fn as_str(&self) -> &str {
+        // SAFETY: `bytes` is a valid UTF-8 string.
+        unsafe { str::from_utf8_unchecked(self.bytes.as_slice()) }
+    }
+
+    fn iter(&self) -> CharIndices<'_> {
+        self.as_str().char_indices()
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl AsRef<str> for IntoChars {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl AsRef<[u8]> for IntoChars {
+    fn as_ref(&self) -> &[u8] {
+        self.bytes.as_slice()
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl Iterator for IntoChars {
+    type Item = char;
+
+    #[inline]
+    fn next(&mut self) -> Option<char> {
+        let mut iter = self.iter();
+        match iter.next() {
+            None => None,
+            Some((_, ch)) => {
+                let offset = iter.offset();
+                drop(self.bytes.drain(..offset));
+                Some(ch)
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter().size_hint()
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<char> {
+        self.next_back()
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl DoubleEndedIterator for IntoChars {
+    #[inline]
+    fn next_back(&mut self) -> Option<char> {
+        let mut iter = self.iter();
+        match iter.next_back() {
+            None => None,
+            Some((idx, ch)) => {
+                self.bytes.truncate(idx);
+                Some(ch)
+            }
+        }
+    }
+}
+
+#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+impl FusedIterator for IntoChars {}
 
 /// A draining iterator for `String`.
 ///
