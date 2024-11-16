@@ -14,6 +14,7 @@ use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_middle::{bug, mir};
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
+use rustc_target::callconv::FnAbi;
 use tracing::debug;
 
 use super::error::*;
@@ -335,6 +336,7 @@ impl<'tcx> interpret::Machine<'tcx> for CompileTimeMachine<'tcx> {
         ecx: &mut InterpCx<'tcx, Self>,
         orig_instance: ty::Instance<'tcx>,
         _abi: ExternAbi,
+        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[FnArg<'tcx>],
         dest: &MPlaceTy<'tcx>,
         ret: Option<mir::BasicBlock>,

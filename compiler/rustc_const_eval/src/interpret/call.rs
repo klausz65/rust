@@ -571,6 +571,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                     self,
                     instance,
                     caller_abi,
+                    caller_fn_abi,
                     args,
                     destination,
                     target,

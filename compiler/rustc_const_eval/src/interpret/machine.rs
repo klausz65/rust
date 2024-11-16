@@ -15,6 +15,7 @@ use rustc_middle::ty::layout::TyAndLayout;
 use rustc_middle::{mir, ty};
 use rustc_span::Span;
 use rustc_span::def_id::DefId;
+use rustc_target::callconv::FnAbi;
 
 use super::{
     AllocBytes, AllocId, AllocKind, AllocRange, Allocation, CTFE_ALLOC_SALT, ConstAllocation,
@@ -202,6 +203,7 @@ pub trait Machine<'tcx>: Sized {
         ecx: &mut InterpCx<'tcx, Self>,
         instance: ty::Instance<'tcx>,
         abi: ExternAbi,
+        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[FnArg<'tcx, Self::Provenance>],
         destination: &MPlaceTy<'tcx, Self::Provenance>,
         target: Option<mir::BasicBlock>,
