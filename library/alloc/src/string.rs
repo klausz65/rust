@@ -1973,9 +1973,6 @@ impl String {
     ///
     /// let mut chars = word.into_chars();
     ///
-    /// let count = chars.clone().count();
-    /// assert_eq!(7, count);
-    ///
     /// assert_eq!(Some('g'), chars.next());
     /// assert_eq!(Some('o'), chars.next());
     /// assert_eq!(Some('o'), chars.next());
@@ -3159,7 +3156,7 @@ impl fmt::Write for String {
 ///
 /// [`char`]: prim@char
 /// [`into_chars`]: String::into_chars
-#[derive(Clone)]
+#[cfg_attr(not(no_global_oom_handling), derive(Clone))]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 #[unstable(feature = "string_into_chars", issue = "133125")]
 pub struct IntoChars {
