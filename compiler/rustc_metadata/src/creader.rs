@@ -22,9 +22,9 @@ use rustc_hir::definitions::Definitions;
 use rustc_index::IndexVec;
 use rustc_middle::bug;
 use rustc_middle::ty::{TyCtxt, TyCtxtFeed};
-use rustc_session::config::{self, CrateType, ExternLocation};
+use rustc_session::config::{self, CrateType, ExternLocation, TargetModifier};
 use rustc_session::cstore::{CrateDepKind, CrateSource, ExternCrate, ExternCrateSource};
-use rustc_session::lint::{self, BuiltinLintDiag};
+use rustc_session::lint::{self, BuiltinLintDiag, LintBuffer};
 use rustc_session::output::validate_crate_name;
 use rustc_session::search_paths::PathKind;
 use rustc_span::edition::Edition;
@@ -35,7 +35,9 @@ use tracing::{debug, info, trace};
 
 use crate::errors;
 use crate::locator::{CrateError, CrateLocator, CratePaths};
-use crate::rmeta::{CrateDep, CrateMetadata, CrateNumMap, CrateRoot, MetadataBlob};
+use crate::rmeta::{
+    CrateDep, CrateMetadata, CrateNumMap, CrateRoot, MetadataBlob, TargetModifiers,
+};
 
 /// The backend's way to give the crate store access to the metadata in a library.
 /// Note that it returns the raw metadata bytes stored in the library file, whether
@@ -290,6 +292,98 @@ impl CStore {
         }
     }
 
+    pub fn report_incompatible_target_modifiers(
+        &self,
+        tcx: TyCtxt<'_>,
+        krate: &Crate,
+        lints: &mut LintBuffer,
+    ) {
+        if tcx.crate_types().contains(&CrateType::ProcMacro) {
+            return;
+        }
+        let sess = tcx.sess;
+        let empty_vec = Vec::<String>::new();
+        let allowed_flag_mismatches = match sess.opts.cg.unsafe_allow_abi_mismatch.as_ref() {
+            Some(vec) => {
+                if vec.is_empty() {
+                    // Setting `-Zunsafe-allow-abi-mismatch=` to an empty
+                    // value allows all target modifier mismatches.
+                    return;
+                }
+                vec
+            }
+            None => &empty_vec,
+        };
+        let span = krate.spans.inner_span.shrink_to_lo();
+
+        let name = tcx.crate_name(LOCAL_CRATE);
+        let mods = sess.opts.gather_target_modifiers();
+        for (_cnum, data) in self.iter_crate_data() {
+            if data.is_proc_macro_crate() {
+                continue;
+            }
+            let mut report_diff = |opt_name_hash: u64,
+                                   flag_local_value: &String,
+                                   flag_extern_value: &String| {
+                let name_info = sess.opts.target_modifier_info_by_hash(opt_name_hash);
+                let (prefix, opt_name) = name_info.expect("Target modifier not found by name hash");
+                if allowed_flag_mismatches.contains(&opt_name) {
+                    return;
+                }
+                lints.buffer_lint(
+                    lint::builtin::INCOMPATIBLE_TARGET_MODIFIERS,
+                    ast::CRATE_NODE_ID,
+                    span,
+                    BuiltinLintDiag::IncompatibleTargetModifiers {
+                        extern_crate: data.name(),
+                        local_crate: name,
+                        flag_name: opt_name.clone(),
+                        flag_name_prefixed: format!("-{}{}", prefix, opt_name),
+                        flag_local_value: flag_local_value.to_string(),
+                        flag_extern_value: flag_extern_value.to_string(),
+                    },
+                );
+            };
+            let mut it1 = mods.iter();
+            let mut it2 = data.target_modifiers();
+            let mut left_name_val: Option<TargetModifier> = None;
+            let mut right_name_val: Option<TargetModifier> = None;
+            let no_val = "*".to_string();
+            loop {
+                left_name_val = left_name_val.or_else(|| it1.next().cloned());
+                right_name_val = right_name_val.or_else(|| it2.next().cloned());
+                match (&left_name_val, &right_name_val) {
+                    (Some(l), Some(r)) => match l.name_hash.cmp(&r.name_hash) {
+                        cmp::Ordering::Equal => {
+                            if l.value_code != r.value_code {
+                                report_diff(l.name_hash, &l.value_name, &r.value_name);
+                            }
+                            left_name_val = None;
+                            right_name_val = None;
+                        }
+                        cmp::Ordering::Greater => {
+                            report_diff(r.name_hash, &no_val, &r.value_name);
+                            right_name_val = None;
+                        }
+                        cmp::Ordering::Less => {
+                            report_diff(l.name_hash, &l.value_name, &no_val);
+                            left_name_val = None;
+                        }
+                    },
+                    (Some(l), None) => {
+                        report_diff(l.name_hash, &l.value_name, &no_val);
+                        left_name_val = None;
+                    }
+                    (None, Some(r)) => {
+                        report_diff(r.name_hash, &no_val, &r.value_name);
+                        right_name_val = None;
+                    }
+                    (None, None) => break,
+                }
+            }
+        }
+    }
+
     pub fn new(metadata_loader: Box<MetadataLoaderDyn>) -> CStore {
         CStore {
             metadata_loader,
@@ -432,6 +526,7 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
         };
 
         let cnum_map = self.resolve_crate_deps(root, &crate_root, &metadata, cnum, dep_kind)?;
+        let target_modifiers = self.resolve_target_modifiers(&crate_root, &metadata, cnum)?;
 
         let raw_proc_macros = if crate_root.is_proc_macro_crate() {
             let temp_root;
@@ -456,6 +551,7 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
             raw_proc_macros,
             cnum,
             cnum_map,
+            target_modifiers,
             dep_kind,
             source,
             private_dep,
@@ -692,6 +788,25 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
 
         debug!("resolve_crate_deps: cnum_map for {:?} is {:?}", krate, crate_num_map);
         Ok(crate_num_map)
+    }
+
+    fn resolve_target_modifiers(
+        &mut self,
+        crate_root: &CrateRoot,
+        metadata: &MetadataBlob,
+        krate: CrateNum,
+    ) -> Result<TargetModifiers, CrateError> {
+        debug!("resolving target modifiers of external crate");
+        if crate_root.is_proc_macro_crate() {
+            return Ok(TargetModifiers::new());
+        }
+        let mods = crate_root.decode_target_modifiers(metadata);
+        let mut target_modifiers = TargetModifiers::with_capacity(mods.len());
+        for modifier in mods {
+            target_modifiers.push(modifier);
+        }
+        debug!("resolve_target_modifiers: target mods for {:?} is {:?}", krate, target_modifiers);
+        Ok(target_modifiers)
     }
 
     fn dlsym_proc_macros(

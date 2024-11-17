@@ -2475,6 +2475,20 @@ pub(crate) struct UnusedCrateDependency {
 }
 
 #[derive(LintDiagnostic)]
+#[diag(lint_incompatible_target_modifiers)]
+#[help]
+#[note(lint_note1)]
+#[note(lint_note2)]
+pub(crate) struct IncompatibleTargetModifiers {
+    pub extern_crate: Symbol,
+    pub local_crate: Symbol,
+    pub flag_name: String,
+    pub flag_name_prefixed: String,
+    pub flag_local_value: String,
+    pub flag_extern_value: String,
+}
+
+#[derive(LintDiagnostic)]
 #[diag(lint_wasm_c_abi)]
 pub(crate) struct WasmCAbi;
 

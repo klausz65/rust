@@ -1170,11 +1170,12 @@ fn describe_codegen_flags() {
 
 fn print_flag_list<T>(
     cmdline_opt: &str,
-    flag_list: &[(&'static str, T, &'static str, &'static str)],
+    flag_list: &[(&'static str, T, &'static str, &'static str, bool)],
 ) {
-    let max_len = flag_list.iter().map(|&(name, _, _, _)| name.chars().count()).max().unwrap_or(0);
+    let max_len =
+        flag_list.iter().map(|&(name, _, _, _, _)| name.chars().count()).max().unwrap_or(0);
 
-    for &(name, _, _, desc) in flag_list {
+    for &(name, _, _, desc, _) in flag_list {
         safe_println!(
             "    {} {:>width$}=val -- {}",
             cmdline_opt,
