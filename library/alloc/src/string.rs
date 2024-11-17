@@ -65,8 +65,7 @@ use crate::collections::TryReserveError;
 use crate::str::{self, CharIndices, Chars, Utf8Error, from_utf8_unchecked_mut};
 #[cfg(not(no_global_oom_handling))]
 use crate::str::{FromStr, from_boxed_utf8_unchecked};
-use crate::vec;
-use crate::vec::Vec;
+use crate::vec::{self, Vec};
 
 /// A UTF-8–encoded, growable string.
 ///
@@ -1968,11 +1967,13 @@ impl String {
     /// Basic usage:
     ///
     /// ```
+    /// #![feature(string_into_chars)]
+    ///
     /// let word = String::from("goodbye");
     ///
     /// let mut chars = word.into_chars();
     ///
-    /// let count = chars.count();
+    /// let count = chars.clone().count();
     /// assert_eq!(7, count);
     ///
     /// assert_eq!(Some('g'), chars.next());
@@ -1989,6 +1990,8 @@ impl String {
     /// Remember, [`char`]s might not match your intuition about characters:
     ///
     /// ```
+    /// #![feature(string_into_chars)]
+    ///
     /// let y = String::from("y̆");
     ///
     /// let mut chars = y.into_chars();
@@ -3179,6 +3182,8 @@ impl IntoChars {
     /// # Examples
     ///
     /// ```
+    /// #![feature(string_into_chars)]
+    ///
     /// let mut chars = String::from("abc").into_chars();
     ///
     /// assert_eq!(chars.as_str(), "abc");
@@ -3196,6 +3201,7 @@ impl IntoChars {
         unsafe { str::from_utf8_unchecked(self.bytes.as_slice()) }
     }
 
+    #[inline]
     fn iter(&self) -> CharIndices<'_> {
         self.as_str().char_indices()
     }
@@ -3213,7 +3219,7 @@ impl Iterator for IntoChars {
             Some((_, ch)) => {
                 let offset = iter.offset();
                 // SAFETY: `offset` is a valid index.
-                unsafe { self.bytes.advance_by(offset).unwrap_unchecked() };
+                let _ = self.bytes.advance_by(offset);
                 Some(ch)
             }
         }
@@ -3224,6 +3230,7 @@ impl Iterator for IntoChars {
         self.iter().count()
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter().size_hint()
     }
