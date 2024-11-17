@@ -1953,8 +1953,54 @@ impl String {
         Drain { start, end, iter: chars_iter, string: self_ptr }
     }
 
-    /// Placeholder docs.
-    #[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+    /// Converts a `String` into an iterator over the [`char`]s of the string.
+    ///
+    /// As a string consists of valid UTF-8, we can iterate through a string
+    /// by [`char`]. This method returns such an iterator.
+    ///
+    /// It's important to remember that [`char`] represents a Unicode Scalar
+    /// Value, and might not match your idea of what a 'character' is. Iteration
+    /// over grapheme clusters may be what you actually want. This functionality
+    /// is not provided by Rust's standard library, check crates.io instead.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// let word = String::from("goodbye");
+    ///
+    /// let mut chars = word.into_chars();
+    ///
+    /// let count = chars.count();
+    /// assert_eq!(7, count);
+    ///
+    /// assert_eq!(Some('g'), chars.next());
+    /// assert_eq!(Some('o'), chars.next());
+    /// assert_eq!(Some('o'), chars.next());
+    /// assert_eq!(Some('d'), chars.next());
+    /// assert_eq!(Some('b'), chars.next());
+    /// assert_eq!(Some('y'), chars.next());
+    /// assert_eq!(Some('e'), chars.next());
+    ///
+    /// assert_eq!(None, chars.next());
+    /// ```
+    ///
+    /// Remember, [`char`]s might not match your intuition about characters:
+    ///
+    /// ```
+    /// let y = String::from("y̆");
+    ///
+    /// let mut chars = y.into_chars();
+    ///
+    /// assert_eq!(Some('y'), chars.next()); // not 'y̆'
+    /// assert_eq!(Some('\u{0306}'), chars.next());
+    ///
+    /// assert_eq!(None, chars.next());
+    /// ```
+    ///
+    /// [`char`]: prim@char
+    #[unstable(feature = "string_into_chars", issue = "133125")]
     pub fn into_chars(self) -> IntoChars {
         IntoChars { bytes: self.into_bytes().into_iter() }
     }
@@ -3101,22 +3147,48 @@ impl fmt::Write for String {
     }
 }
 
-/// Placeholder docs.
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+/// An iterator over the `[char]`s of a string.
+///
+/// This struct is created by the [`into_chars`] method on [`String`].
+/// See its documentation for more.
+///
+/// [`char`]: prim@char
+/// [`into_chars`]: String::into_chars
+#[derive(Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+#[unstable(feature = "string_into_chars", issue = "133125")]
 pub struct IntoChars {
     bytes: vec::IntoIter<u8>,
 }
 
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+#[unstable(feature = "string_into_chars", issue = "133125")]
 impl fmt::Debug for IntoChars {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("IntoChars").field(&self.as_str()).finish()
     }
 }
 
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
 impl IntoChars {
-    /// Placeholder docs.
+    /// Views the underlying data as a subslice of the original data.
+    ///
+    /// This has the same lifetime as the original slice, and so the
+    /// iterator can continue to be used while this exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut chars = String::from("abc").into_chars();
+    ///
+    /// assert_eq!(chars.as_str(), "abc");
+    /// chars.next();
+    /// assert_eq!(chars.as_str(), "bc");
+    /// chars.next();
+    /// chars.next();
+    /// assert_eq!(chars.as_str(), "");
+    /// ```
+    #[unstable(feature = "string_into_chars", issue = "133125")]
+    #[must_use]
+    #[inline]
     pub fn as_str(&self) -> &str {
         // SAFETY: `bytes` is a valid UTF-8 string.
         unsafe { str::from_utf8_unchecked(self.bytes.as_slice()) }
@@ -3127,21 +3199,7 @@ impl IntoChars {
     }
 }
 
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
-impl AsRef<str> for IntoChars {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
-impl AsRef<[u8]> for IntoChars {
-    fn as_ref(&self) -> &[u8] {
-        self.bytes.as_slice()
-    }
-}
-
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+#[unstable(feature = "string_into_chars", issue = "133125")]
 impl Iterator for IntoChars {
     type Item = char;
 
@@ -3153,10 +3211,15 @@ impl Iterator for IntoChars {
             Some((_, ch)) => {
                 let offset = iter.offset();
                 // SAFETY: `offset` is a valid index.
-                let _ = self.bytes.advance_by(offset);
+                unsafe { self.bytes.advance_by(offset).unwrap_unchecked() };
                 Some(ch)
             }
         }
+    }
+
+    #[inline]
+    fn count(self) -> usize {
+        self.iter().count()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -3169,7 +3232,7 @@ impl Iterator for IntoChars {
     }
 }
 
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+#[unstable(feature = "string_into_chars", issue = "133125")]
 impl DoubleEndedIterator for IntoChars {
     #[inline]
     fn next_back(&mut self) -> Option<char> {
@@ -3186,7 +3249,7 @@ impl DoubleEndedIterator for IntoChars {
     }
 }
 
-#[unstable(feature = "into_chars", reason = "new API", issue = "none")]
+#[unstable(feature = "string_into_chars", issue = "133125")]
 impl FusedIterator for IntoChars {}
 
 /// A draining iterator for `String`.
