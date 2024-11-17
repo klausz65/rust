@@ -1959,7 +1959,7 @@ impl String {
     ///
     /// It's important to remember that [`char`] represents a Unicode Scalar
     /// Value, and might not match your idea of what a 'character' is. Iteration
-    /// over grapheme clusters may be what you actually want. This functionality
+    /// over grapheme clusters may be what you actually want. That functionality
     /// is not provided by Rust's standard library, check crates.io instead.
     ///
     /// # Examples
