@@ -2000,6 +2000,8 @@ impl String {
     /// ```
     ///
     /// [`char`]: prim@char
+    #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[unstable(feature = "string_into_chars", issue = "133125")]
     pub fn into_chars(self) -> IntoChars {
         IntoChars { bytes: self.into_bytes().into_iter() }
