@@ -2,7 +2,7 @@ error[E0432]: unresolved import `nonexistent_module`
   --> $DIR/issue-53269.rs:6:9
    |
 LL |     use nonexistent_module::mac;
-   |         ^^^^^^^^^^^^^^^^^^ you might be missing crate `nonexistent_module`
+   |         ^^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `nonexistent_module`
    |
 help: consider importing the `nonexistent_module` crate
    |

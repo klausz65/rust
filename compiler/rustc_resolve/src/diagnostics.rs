@@ -2031,7 +2031,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 (format!("`_` is not a valid crate or module name"), None)
             } else if self.tcx.sess.is_rust_2015() {
                 (
-                    format!("you might be missing crate `{ident}`"),
+                    format!("use of unresolved module or unlinked crate `{ident}`"),
                     Some((
                         vec![(
                             self.current_crate_outer_attr_insert_span,
@@ -2216,7 +2216,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 let descr = binding.res().descr();
                 (format!("{descr} `{ident}` is not a crate or module"), suggestion)
             } else {
-                (format!("use of undeclared crate or module `{ident}`"), suggestion)
+                (format!("use of unresolved module or unlinked crate `{ident}`"), suggestion)
             }
         }
     }

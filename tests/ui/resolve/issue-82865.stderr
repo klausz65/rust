@@ -1,8 +1,8 @@
-error[E0433]: failed to resolve: you might be missing crate `x`
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `x`
   --> $DIR/issue-82865.rs:5:5
    |
 LL | use x::y::z;
-   |     ^ you might be missing crate `x`
+   |     ^ use of unresolved module or unlinked crate `x`
    |
 help: consider importing the `x` crate
    |
