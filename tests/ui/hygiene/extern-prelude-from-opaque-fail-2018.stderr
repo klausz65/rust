@@ -24,6 +24,7 @@ LL |         fn f() { my_core::mem::drop(0); }
 LL | a!();
    | ---- in this macro invocation
    |
+   = help: if you wanted to use a crate named `my_core`, use `cargo add my_core` to add it to your `Cargo.toml`
    = help: consider importing this module:
            std::mem
    = note: this error originates in the macro `a` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -34,6 +35,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `my_
 LL |     fn f() { my_core::mem::drop(0); }
    |              ^^^^^^^ use of unresolved module or unlinked crate `my_core`
    |
+   = help: if you wanted to use a crate named `my_core`, use `cargo add my_core` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL +     use std::mem;

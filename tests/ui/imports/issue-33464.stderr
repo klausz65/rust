@@ -4,7 +4,7 @@ error[E0432]: unresolved import `abc`
 LL | use abc::one_el;
    |     ^^^ use of unresolved module or unlinked crate `abc`
    |
-help: consider importing the `abc` crate
+help: if you wanted to use a crate named `abc`, use `cargo add abc` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate abc;
    |
@@ -15,7 +15,7 @@ error[E0432]: unresolved import `abc`
 LL | use abc::{a, bbb, cccccc};
    |     ^^^ use of unresolved module or unlinked crate `abc`
    |
-help: consider importing the `abc` crate
+help: if you wanted to use a crate named `abc`, use `cargo add abc` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate abc;
    |
@@ -26,7 +26,7 @@ error[E0432]: unresolved import `a_very_long_name`
 LL | use a_very_long_name::{el, el2};
    |     ^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `a_very_long_name`
    |
-help: consider importing the `a_very_long_name` crate
+help: if you wanted to use a crate named `a_very_long_name`, use `cargo add a_very_long_name` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate a_very_long_name;
    |

@@ -20,6 +20,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `fox
 LL |         let _: Vec<i32> = fox::bar::baz::MyVec::new();
    |                           ^^^ use of unresolved module or unlinked crate `fox`
    |
+   = help: if you wanted to use a crate named `fox`, use `cargo add fox` to add it to your `Cargo.toml`
 help: consider importing this struct through its public re-export
    |
 LL +     use foo::bar::baz::MyVec;
@@ -36,6 +37,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `vec
 LL |     type _B = vec::Vec::<u8>;
    |               ^^^ use of unresolved module or unlinked crate `vec`
    |
+   = help: if you wanted to use a crate named `vec`, use `cargo add vec` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::vec;
@@ -65,6 +67,8 @@ LL |     let _t: Vec<i32> = vec::new();
    |                        |
    |                        use of unresolved module or unlinked crate `vec`
    |                        help: a struct with a similar name exists (notice the capitalization): `Vec`
+   |
+   = help: if you wanted to use a crate named `vec`, use `cargo add vec` to add it to your `Cargo.toml`
 
 error: aborting due to 5 previous errors
 

@@ -26,6 +26,8 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `pat
    |
 LL |     path::path::Struct::<const N: usize>()
    |     ^^^^ use of unresolved module or unlinked crate `path`
+   |
+   = help: if you wanted to use a crate named `path`, use `cargo add path` to add it to your `Cargo.toml`
 
 error[E0412]: cannot find type `T` in this scope
   --> $DIR/const-param-decl-on-type-instead-of-impl.rs:8:15

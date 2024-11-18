@@ -4,7 +4,7 @@ error[E0432]: unresolved import `extern_prelude`
 LL |     use extern_prelude::S;
    |         ^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `extern_prelude`
    |
-help: consider importing the `extern_prelude` crate
+help: if you wanted to use a crate named `extern_prelude`, use `cargo add extern_prelude` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate extern_prelude;
    |
@@ -15,7 +15,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `ext
 LL |     let s = ::extern_prelude::S;
    |               ^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `extern_prelude`
    |
-help: consider importing the `extern_prelude` crate
+help: if you wanted to use a crate named `extern_prelude`, use `cargo add extern_prelude` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate extern_prelude;
    |

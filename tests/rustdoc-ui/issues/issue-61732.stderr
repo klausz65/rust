@@ -4,7 +4,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `r#m
 LL | pub(in crate::r#mod) fn main() {}
    |               ^^^^^ use of unresolved module or unlinked crate `r#mod`
    |
-help: consider importing the `r#mod` crate
+help: if you wanted to use a crate named `r#mod`, use `cargo add r#mod` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate r#mod;
    |

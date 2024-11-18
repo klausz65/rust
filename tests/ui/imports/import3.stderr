@@ -4,7 +4,7 @@ error[E0432]: unresolved import `main`
 LL | use main::bar;
    |     ^^^^ use of unresolved module or unlinked crate `main`
    |
-help: consider importing the `main` crate
+help: if you wanted to use a crate named `main`, use `cargo add main` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate main;
    |

@@ -1,7 +1,7 @@
 use foo::bar;
 //~^ ERROR unresolved import `foo` [E0432]
 //~| NOTE use of unresolved module or unlinked crate `foo`
-//~| HELP consider importing the `foo` crate
+//~| HELP if you wanted to use a crate named `foo`, use `cargo add foo` to add it to your `Cargo.toml` and import it in your code
 //~| SUGGESTION extern crate foo;
 
 use bar::Baz as x;

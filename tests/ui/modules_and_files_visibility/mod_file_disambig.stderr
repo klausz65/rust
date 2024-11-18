@@ -11,6 +11,8 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `mod
    |
 LL |     assert_eq!(mod_file_aux::bar(), 10);
    |                ^^^^^^^^^^^^ use of unresolved module or unlinked crate `mod_file_aux`
+   |
+   = help: if you wanted to use a crate named `mod_file_aux`, use `cargo add mod_file_aux` to add it to your `Cargo.toml`
 
 error: aborting due to 2 previous errors
 

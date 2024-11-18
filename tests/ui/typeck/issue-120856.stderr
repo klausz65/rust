@@ -6,6 +6,8 @@ LL | pub type Archived<T> = <m::Alias as n::Trait>::Archived;
    |                                     |
    |                                     use of unresolved module or unlinked crate `n`
    |                                     help: a trait with a similar name exists: `Fn`
+   |
+   = help: if you wanted to use a crate named `n`, use `cargo add n` to add it to your `Cargo.toml`
 
 error[E0433]: failed to resolve: use of unresolved module or unlinked crate `m`
   --> $DIR/issue-120856.rs:1:25
@@ -15,6 +17,8 @@ LL | pub type Archived<T> = <m::Alias as n::Trait>::Archived;
    |                         |
    |                         use of unresolved module or unlinked crate `m`
    |                         help: a type parameter with a similar name exists: `T`
+   |
+   = help: if you wanted to use a crate named `m`, use `cargo add m` to add it to your `Cargo.toml`
 
 error: aborting due to 2 previous errors
 

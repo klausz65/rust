@@ -13,7 +13,7 @@ error[E0432]: unresolved import `non_existent`
 LL | use non_existent::non_existent;
    |     ^^^^^^^^^^^^ use of unresolved module or unlinked crate `non_existent`
    |
-help: consider importing the `non_existent` crate
+help: if you wanted to use a crate named `non_existent`, use `cargo add non_existent` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate non_existent;
    |

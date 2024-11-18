@@ -4,7 +4,7 @@ error[E0432]: unresolved import `something`
 LL | use something::Foo;
    |     ^^^^^^^^^ use of unresolved module or unlinked crate `something`
    |
-help: consider importing the `something` crate
+help: if you wanted to use a crate named `something`, use `cargo add something` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate something;
    |

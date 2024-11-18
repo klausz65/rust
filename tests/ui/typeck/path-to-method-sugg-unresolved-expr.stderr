@@ -3,6 +3,8 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `pag
    |
 LL |     let page_size = page_size::get();
    |                     ^^^^^^^^^ use of unresolved module or unlinked crate `page_size`
+   |
+   = help: if you wanted to use a crate named `page_size`, use `cargo add page_size` to add it to your `Cargo.toml`
 
 error: aborting due to 1 previous error
 

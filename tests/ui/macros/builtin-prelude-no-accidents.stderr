@@ -4,6 +4,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `env
 LL |     env::current_dir;
    |     ^^^ use of unresolved module or unlinked crate `env`
    |
+   = help: if you wanted to use a crate named `env`, use `cargo add env` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::env;
@@ -15,6 +16,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `pan
 LL |     type A = panic::PanicInfo;
    |              ^^^^^ use of unresolved module or unlinked crate `panic`
    |
+   = help: if you wanted to use a crate named `panic`, use `cargo add panic` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::panic;
@@ -26,6 +28,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `vec
 LL |     type B = vec::Vec<u8>;
    |              ^^^ use of unresolved module or unlinked crate `vec`
    |
+   = help: if you wanted to use a crate named `vec`, use `cargo add vec` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::vec;

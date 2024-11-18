@@ -4,7 +4,7 @@ error[E0432]: unresolved import `not_existing_crate`
 LL | use not_existing_crate::*;
    |     ^^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `not_existing_crate`
    |
-help: consider importing the `not_existing_crate` crate
+help: if you wanted to use a crate named `not_existing_crate`, use `cargo add not_existing_crate` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate not_existing_crate;
    |

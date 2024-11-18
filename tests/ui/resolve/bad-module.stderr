@@ -3,12 +3,16 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `foo
    |
 LL |     let foo = foo::bar::baz();
    |               ^^^ use of unresolved module or unlinked crate `foo`
+   |
+   = help: if you wanted to use a crate named `foo`, use `cargo add foo` to add it to your `Cargo.toml`
 
 error[E0433]: failed to resolve: use of unresolved module or unlinked crate `thing`
   --> $DIR/bad-module.rs:2:15
    |
 LL |     let foo = thing::len(Vec::new());
    |               ^^^^^ use of unresolved module or unlinked crate `thing`
+   |
+   = help: if you wanted to use a crate named `thing`, use `cargo add thing` to add it to your `Cargo.toml`
 
 error: aborting due to 2 previous errors
 

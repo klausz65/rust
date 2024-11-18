@@ -4,7 +4,7 @@ error[E0432]: unresolved import `spam`
 LL | use spam::*;
    |     ^^^^ use of unresolved module or unlinked crate `spam`
    |
-help: consider importing the `spam` crate
+help: if you wanted to use a crate named `spam`, use `cargo add spam` to add it to your `Cargo.toml` and import it in your code
    |
 LL + extern crate spam;
    |

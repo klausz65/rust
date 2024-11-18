@@ -3,6 +3,8 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `lib
    |
 LL | extern "C" fn _f() -> libc::uintptr_t {}
    |                       ^^^^ use of unresolved module or unlinked crate `libc`
+   |
+   = help: if you wanted to use a crate named `libc`, use `cargo add libc` to add it to your `Cargo.toml`
 
 error: aborting due to 1 previous error
 

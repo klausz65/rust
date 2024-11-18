@@ -4,6 +4,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `fmt
 LL | impl fmt::Debug for S {
    |      ^^^ use of unresolved module or unlinked crate `fmt`
    |
+   = help: if you wanted to use a crate named `fmt`, use `cargo add fmt` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::fmt;
@@ -15,6 +16,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `fmt
 LL |     fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
    |                            ^^^ use of unresolved module or unlinked crate `fmt`
    |
+   = help: if you wanted to use a crate named `fmt`, use `cargo add fmt` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::fmt;
@@ -26,6 +28,7 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `fmt
 LL |     fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
    |                                                   ^^^ use of unresolved module or unlinked crate `fmt`
    |
+   = help: if you wanted to use a crate named `fmt`, use `cargo add fmt` to add it to your `Cargo.toml`
 help: consider importing this module
    |
 LL + use std::fmt;

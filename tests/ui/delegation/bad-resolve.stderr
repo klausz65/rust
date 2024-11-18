@@ -86,6 +86,8 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `unr
    |
 LL | reuse unresolved_prefix::{a, b, c};
    |       ^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `unresolved_prefix`
+   |
+   = help: if you wanted to use a crate named `unresolved_prefix`, use `cargo add unresolved_prefix` to add it to your `Cargo.toml`
 
 error[E0433]: failed to resolve: `crate` in paths can only be used in start position
   --> $DIR/bad-resolve.rs:44:29
