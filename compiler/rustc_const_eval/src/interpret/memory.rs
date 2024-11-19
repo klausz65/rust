@@ -943,32 +943,41 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         self.get_alloc_raw_mut(id)?.0.mutability = Mutability::Not;
         interp_ok(())
     }
-    
-    pub fn prepare_for_native_call(&mut self, id: AllocId, initial_prov: M) -> InterpResult<'tcx> {
+
+    pub fn prepare_for_native_call(
+        &mut self,
+        id: AllocId,
+        initial_prov: M::Provenance,
+    ) -> InterpResult<'tcx> {
+        // Expose provenance of the root allocation.
+        M::expose_provenance(self, initial_prov)?; // TODO: Is this the right way to expose provenance?
+
         let mut done = rustc_data_structures::fx::FxHashSet::default();
         let mut todo = vec![id];
         while let Some(id) = todo.pop() {
             if done.insert(id) {
                 // This is a new allocation, add the allocation it points to `todo`.
-                let (_size, _align, kind, mutability) = self.get_alloc_info(id); // TODO: Rebasing will give me the mutaility.
+                let info = self.get_alloc_info(id);
 
                 // If there is no data behind this pointer, skip this.
-                if !matches!(kind, AllocKind::LiveData) {
+                if !matches!(info.kind, AllocKind::LiveData) {
                     continue;
                 }
 
                 let alloc = self.get_alloc_raw(id)?;
                 for prov in alloc.provenance().provenances() {
-                    M::expose_provenance(self, prov)?; // TODO: Is this right?
+                    //M::expose_provenance(self, prov)?; // TODO: Is this the right way to expose provenance? + mutable borrow here gives issues due to provenances iterator lifetime...
                     if let Some(id) = prov.get_alloc_id() {
                         todo.push(id);
                     }
                 }
 
                 // Prepare for possible write from native code if mutable.
-                if mutability.is_mut() {
+                if info.mutbl.is_mut() {
+                    let tcx = self.tcx;
                     self.get_alloc_raw_mut(id)?
-                        .prepare_for_native_call()
+                        .0
+                        .prepare_for_native_call(&tcx)
                         .map_err(|e| e.to_interp_error(id))?;
                 }
             }

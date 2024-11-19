@@ -92,5 +92,7 @@ fn test_dangling() {
     let mut ptr = &raw const x;
     drop(x);
     unsafe { write_nullptr(&mut ptr) };
-    assert_eq!(ptr)
+    assert_eq!(ptr, std::ptr::null());
 }
+
+// TODO: Write tests for (forgetting to) expose: -initial allocation -recursively all allocations -unexposed pointers.

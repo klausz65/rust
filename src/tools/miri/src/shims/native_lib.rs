@@ -155,14 +155,17 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             let imm = this.read_immediate(arg)?;
             libffi_args.push(imm_to_carg(&imm, this)?);
             if matches!(arg.layout.ty.kind(), ty::RawPtr(..)) {
-                let ptr = imm.to_scalar().to_pointer(self)?;
-                // We use `get_alloc_id` for its best-effort behaviour with Wildcard provenance.
-                let Ok(alloc_id) = ptr.provenance.and_then(|prov| prov.get_alloc_id()) else {
+                let ptr = imm.to_scalar().to_pointer(this)?;
+                let Some(prov) = ptr.provenance else {
                     // Pointer without provenance may access any memory.
                     continue;
                 };
-                this.prepare_for_native_call(alloc_id, ptr.provenance)?; 
-                // TODO: Write tests for (forgetting to) expose: -initial allocation -recursively all allocations -unexposed pointers.
+                // We use `get_alloc_id` for its best-effort behaviour with Wildcard provenance.
+                let Some(alloc_id) = prov.get_alloc_id() else {
+                    // Pointer without provenance may access any memory.
+                    continue;
+                };
+                this.prepare_for_native_call(alloc_id, prov)?;
             }
         }
 

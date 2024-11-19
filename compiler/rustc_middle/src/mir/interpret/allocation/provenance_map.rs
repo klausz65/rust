@@ -196,13 +196,15 @@ impl<Prov: Provenance> ProvenanceMap<Prov> {
         Ok(())
     }
 
-    pub fn write_wildcards(&mut self, _alloc_size: usize) {
+    pub fn write_wildcards(&mut self, _alloc_size: usize, _cx: &impl HasDataLayout) {
         // We can only write wildcards in Miri.
-        assert!(Prov::OFFSET_IS_ADDR, "writing wildcard provenance is not supported when `OFFSET_IS_ADDR` is false");
+        assert!(
+            Prov::OFFSET_IS_ADDR,
+            "writing wildcard provenance is not supported when `OFFSET_IS_ADDR` is false"
+        );
         let _wildcard = Prov::WILDCARD.unwrap();
-        
-        // TODO: This.
 
+        // TODO: Write wildcards into `self` in intervals of `cx.data_layout().pointer_size` + remaining bytes?
     }
 }
 
