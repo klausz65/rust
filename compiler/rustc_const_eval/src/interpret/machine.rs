@@ -329,9 +329,9 @@ pub trait Machine<'tcx>: Sized {
 
     /// Marks a pointer as exposed, allowing it's provenance
     /// to be recovered. "Pointer-to-int cast"
-    fn expose_ptr(
+    fn expose_provenance(
         ecx: &mut InterpCx<'tcx, Self>,
-        ptr: Pointer<Self::Provenance>,
+        provenance: Self::Provenance,
     ) -> InterpResult<'tcx>;
 
     /// Convert a pointer with provenance into an allocation-offset pair and extra provenance info.

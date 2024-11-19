@@ -943,25 +943,37 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         self.get_alloc_raw_mut(id)?.0.mutability = Mutability::Not;
         interp_ok(())
     }
-
-    pub fn alloc_mark_init_rec(&mut self, id: AllocId) -> InterpResult<'tcx> {
-        let mut reachable = rustc_data_structures::fx::FxHashSet::default();
+    
+    pub fn prepare_for_native_call(&mut self, id: AllocId, initial_prov: M) -> InterpResult<'tcx> {
+        let mut done = rustc_data_structures::fx::FxHashSet::default();
         let mut todo = vec![id];
         while let Some(id) = todo.pop() {
-            if reachable.insert(id) {
+            if done.insert(id) {
                 // This is a new allocation, add the allocation it points to `todo`.
-                if let Ok((alloc, _)) = self.get_alloc_raw_mut(id) {
-                    let range = AllocRange { start: Size::ZERO, size: Size::from_bytes(alloc.len()) };
-                    alloc
-                        .write_zero_if_uninit(range)
+                let (_size, _align, kind, mutability) = self.get_alloc_info(id); // TODO: Rebasing will give me the mutaility.
+
+                // If there is no data behind this pointer, skip this.
+                if !matches!(kind, AllocKind::LiveData) {
+                    continue;
+                }
+
+                let alloc = self.get_alloc_raw(id)?;
+                for prov in alloc.provenance().provenances() {
+                    M::expose_provenance(self, prov)?; // TODO: Is this right?
+                    if let Some(id) = prov.get_alloc_id() {
+                        todo.push(id);
+                    }
+                }
+
+                // Prepare for possible write from native code if mutable.
+                if mutability.is_mut() {
+                    self.get_alloc_raw_mut(id)?
+                        .prepare_for_native_call()
                         .map_err(|e| e.to_interp_error(id))?;
-                    todo.extend(
-                        alloc.provenance().provenances().filter_map(|prov| prov.get_alloc_id()),
-                    );
                 }
             }
         }
-        Ok(())
+        interp_ok(())
     }
 
     /// Create a lazy debug printer that prints the given allocation and all allocations it points

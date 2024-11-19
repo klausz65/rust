@@ -195,6 +195,15 @@ impl<Prov: Provenance> ProvenanceMap<Prov> {
 
         Ok(())
     }
+
+    pub fn write_wildcards(&mut self, _alloc_size: usize) {
+        // We can only write wildcards in Miri.
+        assert!(Prov::OFFSET_IS_ADDR, "writing wildcard provenance is not supported when `OFFSET_IS_ADDR` is false");
+        let _wildcard = Prov::WILDCARD.unwrap();
+        
+        // TODO: This.
+
+    }
 }
 
 /// A partial, owned list of provenance to transfer into another allocation.

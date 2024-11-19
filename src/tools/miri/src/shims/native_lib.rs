@@ -153,17 +153,19 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 throw_unsup_format!("only scalar argument types are support for native calls")
             }
             let imm = this.read_immediate(arg)?;
-            if matches!(arg.layout.ty.kind(), ty::RawPtr(_, rustc_ast::Mutability::Mut)) {
-                let ptr = this.read_pointer(&imm)?;
-                let Ok((alloc_id, _size, _prov_extra)) = this.ptr_try_get_alloc_id(ptr, 0) else {
-                    todo!(); // TODO: Handle absolute-address-returned case.
+            libffi_args.push(imm_to_carg(&imm, this)?);
+            if matches!(arg.layout.ty.kind(), ty::RawPtr(..)) {
+                let ptr = imm.to_scalar().to_pointer(self)?;
+                // We use `get_alloc_id` for its best-effort behaviour with Wildcard provenance.
+                let Ok(alloc_id) = ptr.provenance.and_then(|prov| prov.get_alloc_id()) else {
+                    // Pointer without provenance may access any memory.
+                    continue;
                 };
-                this.alloc_mark_init_rec(alloc_id)?;
+                this.prepare_for_native_call(alloc_id, ptr.provenance)?; 
+                // TODO: Write tests for (forgetting to) expose: -initial allocation -recursively all allocations -unexposed pointers.
             }
-            libffi_args.push(imm_to_carg(imm, this)?);
         }
 
-        // TODO: Directly collect into correct Vec? -- lifetime issues.
         // Convert them to `libffi::high::Arg` type.
         let libffi_args = libffi_args
             .iter()
@@ -229,7 +231,7 @@ impl<'a> CArg {
 
 /// Extract the scalar value from the result of reading a scalar from the machine,
 /// and convert it to a `CArg`.
-fn imm_to_carg<'tcx>(v: ImmTy<'tcx>, cx: &impl HasDataLayout) -> InterpResult<'tcx, CArg> {
+fn imm_to_carg<'tcx>(v: &ImmTy<'tcx>, cx: &impl HasDataLayout) -> InterpResult<'tcx, CArg> {
     interp_ok(match v.layout.ty.kind() {
         // If the primitive provided can be converted to a type matching the type pattern
         // then create a `CArg` of this primitive value with the corresponding `CArg` constructor.

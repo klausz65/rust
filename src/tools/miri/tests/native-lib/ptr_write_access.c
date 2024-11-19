@@ -6,13 +6,13 @@
 /* Test: test_modify_int */
 
 EXPORT void modify_int(int *ptr) {
-  *ptr += 2;
+  *ptr += 1;
 }
 
 /* Test: test_init_int */
 
 EXPORT void init_int(int *ptr) {
-  *ptr = 29;
+  *ptr = 12;
 }
 
 /* Test: test_init_array */
@@ -25,8 +25,20 @@ EXPORT void init_array(int *array, size_t len, int value) {
 
 /* Test: test_swap_ptr */
 
-EXPORT void swap_ptr(const int **x, const int **y) {
-  const int *tmp = *x;
-  *x = *y;
-  *y = tmp;
+EXPORT void swap_ptr(const int **pptr0, const int **pptr1) {
+  const int *tmp = *pptr0;
+  *pptr0 = *pptr1;
+  *pptr1 = tmp;
+}
+
+/* Test: test_init_static_inner */
+
+EXPORT void init_static_inner(int **const pptr) {
+  **pptr = 1234;
+}
+
+/* Test: test_dangling */
+
+EXPORT void write_nullptr(const int **pptr) {
+  *pptr = NULL;
 }

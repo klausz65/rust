@@ -12,6 +12,8 @@ fn main() {
     test_init_array();
 
     test_swap_ptr();
+
+    test_dangling();
 }
 
 fn test_modify_int() {
@@ -19,10 +21,10 @@ fn test_modify_int() {
         fn modify_int(ptr: *mut i32);
     }
 
-    let mut x = 1;
+    let mut x = 11;
     unsafe { modify_int(&mut x) };
 
-    assert_eq!(x, 3);
+    assert_eq!(x, 12);
 }
 
 fn test_init_int() {
@@ -36,7 +38,7 @@ fn test_init_int() {
         x.assume_init()
     };
 
-    assert_eq!(x, 29);
+    assert_eq!(x, 21);
 }
 
 fn test_init_array() {
@@ -45,11 +47,11 @@ fn test_init_array() {
     }
 
     const LEN: usize = 4;
-    let init_value = 5;
+    let init_value = 41;
 
     let mut array = MaybeUninit::<[i32; LEN]>::uninit();
     let array = unsafe {
-        init_array((*array.as_mut_ptr()).as_mut_ptr(), LEN, init_value);
+        init_array(array.as_mut_ptr().cast::<i32>(), LEN, init_value);
         array.assume_init()
     };
 
@@ -58,12 +60,37 @@ fn test_init_array() {
 
 fn test_swap_ptr() {
     extern "C" {
-        fn swap_ptr(x: *mut *const i32, y: *mut *const i32);
+        fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
     }
 
-    let x = 6;
-    let [mut ptr0, mut ptr1] = [&x, std::ptr::null()];
-    unsafe { swap_ptr(&mut ptr0, &mut ptr1); };
+    let x = 51;
+    let mut ptr0 = &x;
+    let mut ptr1 = std::ptr::null();
+    unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
 
     assert_eq!(unsafe { *ptr1 }, x);
+}
+
+fn test_init_static_inner() {
+    extern "C" {
+        fn init_static_inner(pptr: *const *mut MaybeUninit<i32>);
+    }
+
+    static mut INNER: MaybeUninit<i32> = MaybeUninit::uninit();
+    static STATIC: *mut MaybeUninit<i32> = &raw mut INNER;
+    unsafe { init_static_inner(&STATIC) }
+
+    assert_eq!(unsafe { INNER.assume_init() }, 61);
+}
+
+fn test_dangling() {
+    extern "C" {
+        fn write_nullptr(pptr: *mut *const i32);
+    }
+
+    let x = 71;
+    let mut ptr = &raw const x;
+    drop(x);
+    unsafe { write_nullptr(&mut ptr) };
+    assert_eq!(ptr)
 }
