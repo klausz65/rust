@@ -175,6 +175,9 @@ h1, h2, h3, h4 {
 	   more aggressively when we want them to. */
 	overflow-wrap: anywhere;
 }
+.search-results-main-heading nav.sub {
+	grid-area: main-heading-h1;
+}
 .main-heading {
 	position: relative;
 	display: grid;
@@ -194,6 +197,16 @@ h1, h2, h3, h4 {
 	flex-wrap: wrap;
 	align-items: end;
 	padding-top: 5px;
+}
+.search-switcher {
+	grid-area: main-heading-breadcrumbs;
+	line-height: 1.25;
+	display: flex;
+	flex-wrap: wrap;
+	color: var(--main-color);
+	align-items: baseline;
+	white-space: nowrap;
+	margin-top: -1px;
 }
 .rustdoc-breadcrumbs a {
 	padding: 4px 0;
@@ -249,6 +262,7 @@ rustdoc-toolbar,
 summary.hideme,
 .scraped-example-list,
 .rustdoc-breadcrumbs,
+.search-switcher,
 /* This selector is for the items listed in the "all items" page. */
 ul.all-items {
 	font-family: "Fira Sans", Arial, NanumBarunGothic, sans-serif;
@@ -996,16 +1010,15 @@ div.where {
 nav.sub {
 	flex-grow: 1;
 	flex-flow: row nowrap;
-	margin: 4px 0 0 0;
 	display: flex;
-	align-items: center;
+	align-items: start;
+	margin-top: 4px;
 }
 .search-form {
 	position: relative;
 	display: flex;
 	height: 34px;
 	flex-grow: 1;
-	margin-bottom: 4px;
 }
 .src nav.sub {
 	margin: 0 0 -10px 0;
@@ -1109,21 +1122,6 @@ table,
 	padding-right: 1.25rem;
 }
 
-.search-results-title {
-	margin-top: 0;
-	white-space: nowrap;
-	/* flex layout allows shrinking the <select> appropriately if it becomes too large */
-	display: flex;
-	/* make things look like in a line, despite the fact that we're using a layout
-	with boxes (i.e. from the flex layout) */
-	align-items: baseline;
-}
-.search-results-title + .sub-heading {
-	color: var(--main-color);
-	display: flex;
-	align-items: baseline;
-	white-space: nowrap;
-}
 #crate-search-div {
 	/* ensures that 100% in properties of #crate-search-div:after
 	are relative to the size of this div */
@@ -1848,7 +1846,7 @@ a.tooltip:hover::after {
 	border-bottom: 1px solid var(--border-color);
 }
 
-#settings-menu, #help-button, button#toggle-all-docs {
+#search-button, #settings-menu, #help-button, button#toggle-all-docs {
 	margin-left: var(--button-left-margin);
 	display: flex;
 	line-height: 1.25;
@@ -1876,7 +1874,11 @@ a.tooltip:hover::after {
 .hide-sidebar .src #sidebar-button {
 	position: static;
 }
-#settings-menu > a, #help-button > a, #sidebar-button > a, button#toggle-all-docs {
+#search-button > a,
+#settings-menu > a,
+#help-button > a,
+#sidebar-button > a,
+button#toggle-all-docs {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1885,11 +1887,11 @@ a.tooltip:hover::after {
 	border-radius: var(--button-border-radius);
 	color: var(--main-color);
 }
-#settings-menu > a, #help-button > a, button#toggle-all-docs {
+#search-button > a, #settings-menu > a, #help-button > a, button#toggle-all-docs {
 	width: 80px;
 	border-radius: var(--toolbar-button-border-radius);
 }
-#settings-menu > a, #help-button > a {
+#search-button > a, #settings-menu > a, #help-button > a {
 	min-width: 0;
 }
 #sidebar-button > a {
@@ -1898,12 +1900,26 @@ a.tooltip:hover::after {
 	width: 33px;
 }
 
+#search-button > a:hover, #search-button > a:focus-visible,
 #settings-menu > a:hover, #settings-menu > a:focus-visible,
 #help-button > a:hover, #help-button > a:focus-visible,
 #sidebar-button > a:hover, #sidebar-button > a:focus-visible,
 button#toggle-all-docs:hover, button#toggle-all-docs:focus-visible {
 	border-color: var(--settings-button-border-focus);
 	text-decoration: none;
+}
+
+#search-button > a:before {
+	/* Magnifying glass */
+	content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" \
+		width="18" height="18" viewBox="0 0 16 16">\
+	    <circle r="5" cy="7" cx="6" style="fill:none;stroke:currentColor;stroke-width:3"></circle>\
+	    <path d="M 16,15 10,10" style="fill:none;stroke:currentColor;stroke-width:4"></path>\
+	    <desc>Search</desc>\
+	    </svg>');
+	width: 18px;
+	height: 18px;
+	filter: var(--settings-menu-filter);
 }
 
 #settings-menu > a:before {
@@ -1948,6 +1964,7 @@ button#toggle-all-docs:before {
 	filter: var(--settings-menu-filter);
 }
 
+#search-button > a:before,
 button#toggle-all-docs:before,
 #help-button > a:before,
 #settings-menu > a:before {
@@ -1956,6 +1973,7 @@ button#toggle-all-docs:before,
 }
 
 @media not (pointer: coarse) {
+	#search-button > a:hover:before,
 	button#toggle-all-docs:hover:before,
 	#help-button > a:hover:before,
 	#settings-menu > a:hover:before {
@@ -2247,6 +2265,20 @@ However, it's not needed with smaller screen width because the doc/code block is
 	.side-by-side > div {
 		width: auto;
 	}
+
+	/* Text label takes up too much space at this size. */
+	rustdoc-toolbar span.label {
+		display: none;
+	}
+	#search-button > a, #settings-menu > a, #help-button > a, button#toggle-all-docs {
+		width: 33px;
+	}
+	#settings.popover {
+		--popover-arrow-offset: 86px;
+	}
+	#help.popover {
+		--popover-arrow-offset: 48px;
+	}
 }
 
 /*
@@ -2271,20 +2303,6 @@ in src-script.js and main.js
 			they're packed more tightly than that. */
 		width: 0;
 		visibility: hidden;
-	}
-
-	/* Text label takes up too much space at this size. */
-	rustdoc-toolbar span.label {
-		display: none;
-	}
-	#settings-menu > a, #help-button > a, button#toggle-all-docs {
-		width: 33px;
-	}
-	#settings.popover {
-		--popover-arrow-offset: 86px;
-	}
-	#help.popover {
-		--popover-arrow-offset: 48px;
 	}
 
 	.rustdoc {

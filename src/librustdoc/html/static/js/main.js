@@ -241,13 +241,51 @@ function preLoadCss(cssUrl) {
     window.searchState = {
         rustdocToolbar: document.querySelector("rustdoc-toolbar"),
         loadingText: "Loading search results...",
-        input: document.getElementsByClassName("search-input")[0],
-        outputElement: () => {
+        inputElement: () => {
+            let el = document.getElementsByClassName("search-input")[0];
+            if (!el) {
+                const out = searchState.outputElement().parentElement;
+                const hdr = document.createElement("div");
+                hdr.className = "main-heading search-results-main-heading";
+                const rootPath = getVar("root-path");
+                const currentCrate = getVar("current-crate");
+                hdr.innerHTML = `<nav class="sub">
+                    <form class="search-form">
+                        <span></span> <!-- This empty span is a hacky fix for Safari: see #93184 -->
+                        <div id="sidebar-button" tabindex="-1">
+                            <a href="${rootPath}${currentCrate}/all.html" title="show sidebar"></a>
+                        </div>
+                        <input
+                            class="search-input"
+                            name="search"
+                            aria-label="Run search in the documentation"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…"
+                            type="search">
+                    </form>
+                </nav><div class="search-switcher"></div>`;
+                out.insertBefore(hdr, searchState.outputElement());
+                el = document.getElementsByClassName("search-input")[0];
+            }
+            return el;
+        },
+        containerElement: () => {
             let el = document.getElementById("search");
             if (!el) {
                 el = document.createElement("section");
                 el.id = "search";
                 getNotDisplayedElem().appendChild(el);
+            }
+            return el;
+        },
+        outputElement: () => {
+            const container = searchState.containerElement();
+            let el = container.querySelector(".search-out");
+            if (!el) {
+                el = document.createElement("div");
+                el.className = "search-out";
+                container.appendChild(el);
             }
             return el;
         },
@@ -268,22 +306,38 @@ function preLoadCss(cssUrl) {
                 searchState.timeout = null;
             }
         },
-        isDisplayed: () => searchState.outputElement().parentElement.id === ALTERNATIVE_DISPLAY_ID,
+        isDisplayed: () => searchState.containerElement().parentElement.id ===
+            ALTERNATIVE_DISPLAY_ID,
         // Sets the focus on the search bar at the top of the page
         focus: () => {
-            searchState.input.focus();
+            searchState.showResults();
+            searchState.inputElement().focus();
         },
         // Removes the focus from the search bar.
         defocus: () => {
-            searchState.input.blur();
+            searchState.inputElement().blur();
         },
-        showResults: search => {
-            if (search === null || typeof search === "undefined") {
-                search = searchState.outputElement();
+        toggle: () => {
+            if (searchState.isDisplayed()) {
+                searchState.defocus();
+                searchState.hideResults();
+            } else {
+                searchState.focus();
             }
+        },
+        showResults: () => {
+            document.title = searchState.title;
+            if (searchState.isDisplayed()) {
+                return;
+            }
+            const search = searchState.containerElement();
             switchDisplayedElement(search);
             searchState.mouseMovedAfterSearch = false;
-            document.title = searchState.title;
+            const btn = document.querySelector("#search-button a");
+            if (browserSupportsHistoryApi() && btn &&
+                searchState.getQueryStringParams().search === undefined) {
+                history.pushState(null, "", btn.href);
+            }
         },
         removeQueryParameters: () => {
             // We change the document title.
@@ -309,11 +363,8 @@ function preLoadCss(cssUrl) {
             return params;
         },
         setup: () => {
-            const search_input = searchState.input;
-            if (!searchState.input) {
-                return;
-            }
             let searchLoaded = false;
+            const search_input = searchState.inputElement();
             // If you're browsing the nightly docs, the page might need to be refreshed for the
             // search to work because the hash of the JS scripts might have changed.
             function sendSearchForm() {
@@ -333,8 +384,16 @@ function preLoadCss(cssUrl) {
                 loadSearch();
             });
 
-            if (search_input.value !== "") {
-                loadSearch();
+            const btn = document.getElementById("search-button");
+            if (btn) {
+                btn.onclick = event => {
+                    if (event.ctrlKey || event.altKey || event.metaKey) {
+                        return;
+                    }
+                    event.preventDefault();
+                    searchState.toggle();
+                    loadSearch();
+                };
             }
 
             const params = searchState.getQueryStringParams();
@@ -346,7 +405,7 @@ function preLoadCss(cssUrl) {
         setLoadingSearch: () => {
             const search = searchState.outputElement();
             search.innerHTML = "<h3 class=\"search-loading\">" + searchState.loadingText + "</h3>";
-            searchState.showResults(search);
+            searchState.showResults();
         },
         descShards: new Map(),
         loadDesc: async function({descShard, descIndex}) {

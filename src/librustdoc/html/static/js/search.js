@@ -4404,11 +4404,63 @@ ${item.displayPath}<span class="${type}">${name}</span>\
         });
     } else if (query.error === null) {
         output.className = "search-failed" + extraClass;
-        output.innerHTML = "No results :(<br/>" +
+        if (query.userQuery === "") {
+            // Find three random items. First, a fully random item,
+            // which will serve as the path example.
+            let rndIdx = Math.floor(Math.random() * (docSearch.searchIndex.length - 1));
+            let rndItem = docSearch.searchIndex[rndIdx];
+            let rndPath = rndItem.path;
+            if (rndItem.parent) {
+                rndPath += "::" + rndItem.parent.name;
+            }
+            if (rndPath !== "") {
+                rndPath += "::";
+            }
+            rndPath += rndItem.name;
+            // Secondly, a random item that is also a function-like,
+            // which will be shown as a type signature. This may be
+            // the same item as the first, or it might just be close.
+            let startIdx = rndIdx;
+            let rndType = null;
+            if (!rndItem.type) {
+                rndIdx = (rndIdx + 1) % docSearch.searchIndex.length;
+                while (rndIdx !== startIdx && !rndItem.type) {
+                    rndItem = docSearch.searchIndex[rndIdx];
+                    rndIdx = (rndIdx + 1) % docSearch.searchIndex.length;
+                }
+            }
+            if (rndItem.type) {
+                rndType = (await docSearch.formatDisplayTypeSignature(rndItem, "sig")).type;
+            }
+            // Finally, a separate random item, shown only as a name.
+            rndIdx = Math.floor(Math.random() * (docSearch.searchIndex.length - 1));
+            rndItem = docSearch.searchIndex[rndIdx];
+            startIdx = rndIdx;
+            rndIdx = (rndIdx + 1) % docSearch.searchIndex.length;
+            while (rndItem.type && rndIdx !== startIdx) {
+                rndIdx = (rndIdx + 1) % docSearch.searchIndex.length;
+                rndItem = docSearch.searchIndex[rndIdx];
+            }
+            const rndName = rndItem.name;
+            output.innerHTML = "Example searches:<ul>" +
+                "<li><a href=\"" + getNakedUrl() + "?search=" + encodeURIComponent(rndPath) +
+                    "\">" + rndPath + "</a></li>" +
+                "<li><a href=\"" + getNakedUrl() + "?search=" + encodeURIComponent(rndType) +
+                    "\">" + rndType + "</a></li>" +
+                "<li><a href=\"" + getNakedUrl() + "?search=" + encodeURIComponent(rndName) +
+                    "\">" + rndName + "</a></li>" +
+                "</ul>";
+        } else {
+            output.innerHTML = "No results :(<br/>" +
             "Try on <a href=\"https://duckduckgo.com/?q=" +
             encodeURIComponent("rust " + query.userQuery) +
-            "\">DuckDuckGo</a>?<br/><br/>" +
-            "Or try looking in one of these:<ul><li>The <a " +
+            "\">DuckDuckGo</a>?<br/><br/>";
+        }
+        const channel = getVar("channel");
+        output.innerHTML += "Or try looking in one of these:<ul><li>" +
+            `For a full list of all search features, take a look <a \
+href="https://doc.rust-lang.org/${channel}/rustdoc/read-documentation/search.html">here</a>.` +
+            "</li><li>The <a " +
             "href=\"https://doc.rust-lang.org/reference/index.html\">Rust Reference</a> " +
             " for technical details about the language.</li><li><a " +
             "href=\"https://doc.rust-lang.org/rust-by-example/index.html\">Rust By " +
@@ -4470,7 +4522,7 @@ async function showResults(results, go_to_first, filterCrates) {
         return;
     }
     if (results.query === undefined) {
-        results.query = DocSearch.parseQuery(searchState.input.value);
+        results.query = DocSearch.parseQuery(searchState.inputElement().value);
     }
 
     currentResults = results.query.userQuery;
@@ -4493,16 +4545,16 @@ async function showResults(results, go_to_first, filterCrates) {
 
     let crates = "";
     if (rawSearchIndex.size > 1) {
-        crates = "<div class=\"sub-heading\"> in&nbsp;<div id=\"crate-search-div\">" +
+        crates = "&nbsp;in&nbsp;<div id=\"crate-search-div\">" +
             "<select id=\"crate-search\"><option value=\"all crates\">all crates</option>";
         for (const c of rawSearchIndex.keys()) {
             crates += `<option value="${c}" ${c === filterCrates && "selected"}>${c}</option>`;
         }
-        crates += "</select></div></div>";
+        crates += "</select></div>";
     }
+    document.querySelector(".search-switcher").innerHTML = `Search results${crates}`;
 
-    let output = `<div class="main-heading">\
-        <h1 class="search-results-title">Results</h1>${crates}</div>`;
+    let output = "";
     if (results.query.error !== null) {
         const error = results.query.error;
         error.forEach((value, index) => {
@@ -4565,16 +4617,13 @@ async function showResults(results, go_to_first, filterCrates) {
     resultsElem.appendChild(ret_returned);
 
     search.innerHTML = output;
-    if (searchState.rustdocToolbar) {
-        search.querySelector(".main-heading").appendChild(searchState.rustdocToolbar);
-    }
     const crateSearch = document.getElementById("crate-search");
     if (crateSearch) {
         crateSearch.addEventListener("input", updateCrate);
     }
     search.appendChild(resultsElem);
     // Reset focused elements.
-    searchState.showResults(search);
+    searchState.showResults();
     const elems = document.getElementById("search-tabs").childNodes;
     searchState.focusedByTab = [];
     let i = 0;
@@ -4588,11 +4637,15 @@ async function showResults(results, go_to_first, filterCrates) {
 }
 
 function updateSearchHistory(url) {
+    const btn = document.querySelector("#search-button a");
+    if (btn) {
+        btn.href = url;
+    }
     if (!browserSupportsHistoryApi()) {
         return;
     }
     const params = searchState.getQueryStringParams();
-    if (!history.state && !params.search) {
+    if (!history.state && params.search === undefined) {
         history.pushState(null, "", url);
     } else {
         history.replaceState(null, "", url);
@@ -4605,7 +4658,7 @@ function updateSearchHistory(url) {
  * @param {boolean} [forced]
  */
 async function search(forced) {
-    const query = DocSearch.parseQuery(searchState.input.value.trim());
+    const query = DocSearch.parseQuery(searchState.inputElement().value.trim());
     let filterCrates = getFilterCrates();
 
     if (!forced && query.userQuery === currentResults) {
@@ -4649,8 +4702,8 @@ function onSearchSubmit(e) {
 }
 
 function putBackSearch() {
-    const search_input = searchState.input;
-    if (!searchState.input) {
+    const search_input = searchState.inputElement();
+    if (!search_input) {
         return;
     }
     if (search_input.value !== "" && !searchState.isDisplayed()) {
@@ -4670,22 +4723,18 @@ function registerSearchEvents() {
     // but only if the input bar is empty. This avoid the obnoxious issue
     // where you start trying to do a search, and the index loads, and
     // suddenly your search is gone!
-    if (searchState.input.value === "") {
-        searchState.input.value = params.search || "";
+    if (searchState.inputElement().value === "") {
+        searchState.inputElement().value = params.search || "";
     }
 
     const searchAfter500ms = () => {
         searchState.clearInputTimeout();
-        if (searchState.input.value.length === 0) {
-            searchState.hideResults();
-        } else {
-            searchState.timeout = setTimeout(search, 500);
-        }
+        searchState.timeout = setTimeout(search, 500);
     };
-    searchState.input.onkeyup = searchAfter500ms;
-    searchState.input.oninput = searchAfter500ms;
+    searchState.inputElement().onkeyup = searchAfter500ms;
+    searchState.inputElement().oninput = searchAfter500ms;
     document.getElementsByClassName("search-form")[0].onsubmit = onSearchSubmit;
-    searchState.input.onchange = e => {
+    searchState.inputElement().onchange = e => {
         if (e.target !== document.activeElement) {
             // To prevent doing anything when it's from a blur event.
             return;
@@ -4697,7 +4746,7 @@ function registerSearchEvents() {
         // change, though.
         setTimeout(search, 0);
     };
-    searchState.input.onpaste = searchState.input.onchange;
+    searchState.inputElement().onpaste = searchState.inputElement().onchange;
 
     searchState.outputElement().addEventListener("keydown", e => {
         // We only handle unmodified keystrokes here. We don't want to interfere with,
@@ -4734,19 +4783,19 @@ function registerSearchEvents() {
         }
     });
 
-    searchState.input.addEventListener("keydown", e => {
+    searchState.inputElement().addEventListener("keydown", e => {
         if (e.which === 40) { // down
             focusSearchResult();
             e.preventDefault();
         }
     });
 
-    searchState.input.addEventListener("focus", () => {
+    searchState.inputElement().addEventListener("focus", () => {
         putBackSearch();
     });
 
-    searchState.input.addEventListener("blur", () => {
-        searchState.input.placeholder = searchState.input.origPlaceholder;
+    searchState.inputElement().addEventListener("blur", () => {
+        searchState.inputElement().placeholder = searchState.inputElement().origPlaceholder;
     });
 
     // Push and pop states are used to add search results to the browser
@@ -4768,8 +4817,8 @@ function registerSearchEvents() {
             // perform the search. This will empty the bar if there's
             // nothing there, which lets you really go back to a
             // previous state with nothing in the bar.
-            if (params.search && params.search.length > 0) {
-                searchState.input.value = params.search;
+            if (params.search !== undefined) {
+                searchState.inputElement().value = params.search;
                 // Some browsers fire "onpopstate" for every page load
                 // (Chrome), while others fire the event only when actually
                 // popping a state (Firefox), which is why search() is
@@ -4778,7 +4827,6 @@ function registerSearchEvents() {
                 e.preventDefault();
                 search();
             } else {
-                searchState.input.value = "";
                 // When browsing back from search results the main page
                 // visibility must be reset.
                 searchState.hideResults();
@@ -4794,17 +4842,19 @@ function registerSearchEvents() {
     // do a small amount of re-init on page show.
     window.onpageshow = () => {
         const qSearch = searchState.getQueryStringParams().search;
-        if (searchState.input.value === "" && qSearch) {
-            searchState.input.value = qSearch;
+        if (qSearch !== undefined) {
+            if (searchState.inputElement().value === "") {
+                searchState.inputElement().value = qSearch;
+            }
+            search();
         }
-        search();
     };
 }
 
 function updateCrate(ev) {
     if (ev.target.value === "all crates") {
         // If we don't remove it from the URL, it'll be picked up again by the search.
-        const query = searchState.input.value.trim();
+        const query = searchState.inputElement().value.trim();
         updateSearchHistory(buildUrl(query, null));
     }
     // In case you "cut" the entry from the search input, then change the crate filter
@@ -4820,7 +4870,7 @@ function initSearch(searchIndx) {
         docSearch = new DocSearch(rawSearchIndex, ROOT_PATH, searchState);
         registerSearchEvents();
         // If there's a search term in the URL, execute the search now.
-        if (window.searchState.getQueryStringParams().search) {
+        if (window.searchState.getQueryStringParams().search !== undefined) {
             search();
         }
     } else if (typeof exports !== "undefined") {
