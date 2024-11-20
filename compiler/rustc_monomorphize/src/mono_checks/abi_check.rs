@@ -36,7 +36,10 @@ fn do_check_abi<'tcx>(
     target_feature_def: DefId,
     mut emit_err: impl FnMut(Option<&'static str>),
 ) {
-    let feature_def = tcx.sess.target.features_for_correct_vector_abi();
+    let Some(feature_def) = tcx.sess.target.features_for_correct_vector_abi() else {
+        // Target doesn't use vector registers for vectors.
+        return;
+    };
     let codegen_attrs = tcx.codegen_fn_attrs(target_feature_def);
     for arg_abi in abi.args.iter().chain(std::iter::once(&abi.ret)) {
         let size = arg_abi.layout.size;
