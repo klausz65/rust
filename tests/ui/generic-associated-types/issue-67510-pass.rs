@@ -10,6 +10,6 @@ trait X {
 }
 
 fn _func1<'a>(_x: Box<dyn X<Y<'a>=&'a ()>>) {}
-//[base]~^ ERROR the trait `X` cannot be made into an object
+//[base]~^ ERROR the trait `X` is not dyn compatible
 
 fn main() {}

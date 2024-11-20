@@ -9,7 +9,7 @@ trait CollectionFamily {
 fn floatify() {
     Box::new(Family) as &dyn CollectionFamily<Member=usize>
     //~^ ERROR: missing generics for associated type
-    //[base]~^^ ERROR: the trait `CollectionFamily` cannot be made into an object
+    //[base]~^^ ERROR: the trait `CollectionFamily` is not dyn compatible
 }
 
 struct Family;

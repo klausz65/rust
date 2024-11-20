@@ -1,13 +1,14 @@
-error[E0038]: the trait `Eq` cannot be made into an object
+error[E0038]: the trait `Eq` is not dyn compatible
   --> $DIR/object-fail.rs:7:13
    |
 LL |     let _: &dyn EqAlias = &123;
-   |             ^^^^^^^^^^^ `Eq` cannot be made into an object
+   |             ^^^^^^^^^^^ `Eq` is not dyn compatible
    |
-note: for a trait to be "dyn-compatible" it needs to allow building a vtable to allow the call to be resolvable dynamically; for more information visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
+note: for a trait to be dyn compatible it needs to allow building a vtable
+      for more information, visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
   --> $SRC_DIR/core/src/cmp.rs:LL:COL
    |
-   = note: the trait cannot be made into an object because it uses `Self` as a type parameter
+   = note: the trait is not dyn compatible because it uses `Self` as a type parameter
 
 error[E0191]: the value of the associated type `Item` in `Iterator` must be specified
   --> $DIR/object-fail.rs:9:17
