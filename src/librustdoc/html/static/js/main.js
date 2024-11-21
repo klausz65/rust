@@ -312,6 +312,8 @@ function preLoadCss(cssUrl) {
         focus: () => {
             searchState.showResults();
             searchState.inputElement().focus();
+            // Avoid glitch if something focuses the search button after clicking.
+            requestAnimationFrame(() => searchState.inputElement().focus());
         },
         // Removes the focus from the search bar.
         defocus: () => {
