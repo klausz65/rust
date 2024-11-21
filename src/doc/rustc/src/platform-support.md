@@ -100,7 +100,7 @@ target | notes
 [`riscv64gc-unknown-linux-gnu`](platform-support/riscv64gc-unknown-linux-gnu.md) | RISC-V Linux (kernel 4.20, glibc 2.29)
 [`riscv64gc-unknown-linux-musl`](platform-support/riscv64gc-unknown-linux-musl.md) | RISC-V Linux (kernel 4.20, musl 1.2.3)
 `s390x-unknown-linux-gnu` | S390x Linux (kernel 3.2, glibc 2.17)
-[`x86_64-unknown-freebsd`](platform-support/freebsd.md) | 64-bit FreeBSD
+[`x86_64-unknown-freebsd`](platform-support/freebsd.md) | 64-bit amd64 FreeBSD
 `x86_64-unknown-illumos` | illumos
 `x86_64-unknown-linux-musl` | 64-bit Linux with musl 1.2.3
 [`x86_64-unknown-netbsd`](platform-support/netbsd.md) | NetBSD/amd64
@@ -166,7 +166,7 @@ target | std | notes
 `i586-unknown-linux-musl` | ✓ | 32-bit Linux w/o SSE, musl 1.2.3 [^x86_32-floats-x87]
 [`i686-linux-android`](platform-support/android.md) | ✓ | 32-bit x86 Android [^x86_32-floats-return-ABI]
 [`i686-pc-windows-gnullvm`](platform-support/pc-windows-gnullvm.md) | ✓ | 32-bit x86 MinGW (Windows 10+), LLVM ABI [^x86_32-floats-return-ABI]
-[`i686-unknown-freebsd`](platform-support/freebsd.md) | ✓ | 32-bit FreeBSD [^x86_32-floats-return-ABI]
+[`i686-unknown-freebsd`](platform-support/freebsd.md) | ✓ | 32-bit x86 FreeBSD [^x86_32-floats-return-ABI]
 `i686-unknown-linux-musl` | ✓ | 32-bit Linux with musl 1.2.3 [^x86_32-floats-return-ABI]
 [`i686-unknown-uefi`](platform-support/unknown-uefi.md) | ? | 32-bit UEFI
 [`loongarch64-unknown-none`](platform-support/loongarch-none.md) | * | LoongArch64 Bare-metal (LP64D ABI)
