@@ -714,12 +714,9 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
-            &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.
             &prettify::ReorderBasicBlocks,
             &prettify::ReorderLocals,
-            // Dump the end result for testing and debugging purposes.
-            &dump_mir::Marker("PreCodegen"),
         ],
         Some(MirPhase::Runtime(RuntimePhase::Optimized)),
     );
@@ -795,6 +792,7 @@ pub fn build_codegen_mir<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> B
             &o1(simplify_branches::SimplifyConstCondition::PostMono),
             &o1(simplify::SimplifyCfg::PostMono),
             &add_call_guards::CriticalCallEdges,
+            &dump_mir::Marker("PreCodegen"),
         ],
         None,
     );
