@@ -644,7 +644,8 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
     }
 
     /// Initialize all previously uninitialized bytes in the entire allocation, and set
-    /// provenance of everything to `Wildcard`
+    /// provenance of everything to `Wildcard`. Before calling this, make sure all
+    /// provenance in this allocation is exposed!
     pub fn prepare_for_native_call(&mut self, cx: &impl HasDataLayout) -> AllocResult {
         let full_range = AllocRange { start: Size::ZERO, size: Size::from_bytes(self.len()) };
         // Overwrite uninitialized bytes.

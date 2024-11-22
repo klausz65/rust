@@ -88,8 +88,8 @@ fn test_dangling() {
         fn write_nullptr(pptr: *mut *const i32);
     }
 
-    let x = 71;
-    let mut ptr = &raw const x;
+    let x = Box::new(71);
+    let mut ptr = x.into_raw();
     drop(x);
     unsafe { write_nullptr(&mut ptr) };
     assert_eq!(ptr, std::ptr::null());

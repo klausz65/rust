@@ -950,36 +950,37 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         initial_prov: M::Provenance,
     ) -> InterpResult<'tcx> {
         // Expose provenance of the root allocation.
-        M::expose_provenance(self, initial_prov)?; // TODO: Is this the right way to expose provenance?
+        M::expose_provenance(self, initial_prov)?;
 
         let mut done = rustc_data_structures::fx::FxHashSet::default();
         let mut todo = vec![id];
         while let Some(id) = todo.pop() {
-            if done.insert(id) {
-                // This is a new allocation, add the allocation it points to `todo`.
-                let info = self.get_alloc_info(id);
+            if !done.insert(id) {
+                continue;
+            }
+            // This is a new allocation, add the allocations it points to to `todo`.
+            let info = self.get_alloc_info(id);
 
-                // If there is no data behind this pointer, skip this.
-                if !matches!(info.kind, AllocKind::LiveData) {
-                    continue;
-                }
+            // If there is no data behind this pointer, skip this.
+            if !matches!(info.kind, AllocKind::LiveData) {
+                continue;
+            }
 
-                let alloc = self.get_alloc_raw(id)?;
-                for prov in alloc.provenance().provenances() {
-                    //M::expose_provenance(self, prov)?; // TODO: Is this the right way to expose provenance? + mutable borrow here gives issues due to provenances iterator lifetime...
-                    if let Some(id) = prov.get_alloc_id() {
-                        todo.push(id);
-                    }
+            let alloc = self.get_alloc_raw(id)?;
+            for prov in alloc.provenance().provenances() {
+                //M::expose_provenance(self, prov)?; // TODO: mutable borrow here gives issues due to provenances iterator lifetime...
+                if let Some(id) = prov.get_alloc_id() {
+                    todo.push(id);
                 }
+            }
 
-                // Prepare for possible write from native code if mutable.
-                if info.mutbl.is_mut() {
-                    let tcx = self.tcx;
-                    self.get_alloc_raw_mut(id)?
-                        .0
-                        .prepare_for_native_call(&tcx)
-                        .map_err(|e| e.to_interp_error(id))?;
-                }
+            // Prepare for possible write from native code if mutable.
+            if info.mutbl.is_mut() {
+                let tcx = self.tcx;
+                self.get_alloc_raw_mut(id)?
+                    .0
+                    .prepare_for_native_call(&tcx)
+                    .map_err(|e| e.to_interp_error(id))?;
             }
         }
         interp_ok(())
