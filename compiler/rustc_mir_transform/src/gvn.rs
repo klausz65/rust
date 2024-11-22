@@ -131,7 +131,10 @@ impl<'tcx> crate::MirPass<'tcx> for GVN {
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         debug!(def_id = ?body.source.def_id());
 
-        let typing_env = body.typing_env(tcx);
+        let typing_env = match self {
+            GVN::Polymorphic => body.typing_env(tcx),
+            GVN::PostMono => ty::TypingEnv::fully_monomorphized(),
+        };
         let ssa = SsaLocals::new(tcx, body, typing_env);
         // Clone dominators because we need them while mutating the body.
         let dominators = body.basic_blocks.dominators().clone();
