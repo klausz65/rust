@@ -82,6 +82,17 @@ where
         goal: Goal<I, Self>,
         assumption: I::Clause,
     ) -> Result<Candidate<I>, NoSolution> {
+        let ty::Dynamic(data, _, _) = goal.predicate.self_ty().kind() else {
+            unreachable!();
+        };
+
+        if ecx.cx().trait_has_impl_which_may_shadow_dyn(
+            goal.predicate.trait_def_id(ecx.cx()),
+            data.principal_def_id(),
+        ) {
+            return Err(NoSolution);
+        }
+
         Self::probe_and_match_goal_against_assumption(ecx, source, goal, assumption, |ecx| {
             let cx = ecx.cx();
             let ty::Dynamic(bounds, _, _) = goal.predicate.self_ty().kind() else {

@@ -578,6 +578,14 @@ impl<'tcx> Interner for TyCtxt<'tcx> {
         self.trait_def(trait_def_id).implement_via_object
     }
 
+    fn trait_has_impl_which_may_shadow_dyn(
+        self,
+        trait_def_id: DefId,
+        principal_def_id: Option<DefId>,
+    ) -> bool {
+        self.trait_has_impl_which_may_shadow_dyn((trait_def_id, principal_def_id))
+    }
+
     fn is_impl_trait_in_trait(self, def_id: DefId) -> bool {
         self.is_impl_trait_in_trait(def_id)
     }
