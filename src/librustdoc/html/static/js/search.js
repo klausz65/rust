@@ -1,5 +1,5 @@
 // ignore-tidy-filelength
-/* global addClass, getNakedUrl, getSettingValue */
+/* global addClass, getNakedUrl, getSettingValue, getVar */
 /* global onEachLazy, removeClass, searchState, browserSupportsHistoryApi, exports */
 
 "use strict";
@@ -1298,7 +1298,7 @@ class NameTrie {
 }
 
 class DocSearch {
-    constructor(rawSearchIndex, rootPath, searchState) {
+    constructor(rootPath, searchState) {
         /**
          * @type {Map<String, RoaringBitmap>}
          */
@@ -1417,7 +1417,7 @@ class DocSearch {
         /**
          *  @type {Array<Row>}
          */
-        this.searchIndex = this.buildIndex(rawSearchIndex);
+        this.searchIndex = [];
     }
 
     /**
@@ -1695,7 +1695,7 @@ class DocSearch {
      *
      * @param {[string, RawSearchIndexCrate][]} rawSearchIndex
      */
-    buildIndex(rawSearchIndex) {
+    async buildIndex(rawSearchIndex) {
         /**
          * Convert from RawFunctionSearchType to FunctionSearchType.
          *
@@ -1903,6 +1903,20 @@ class DocSearch {
                 paths[i] = { ty, name, path, exactPath, unboxFlag };
             }
 
+            // Throttlers are used to yield to the JavaScript event loop
+            // while this is being built.
+            // They're generated up-front to avoid the "nesting level"
+            // limit that limits our speed to 4ms per tick.
+            // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html
+            const throttlers = [];
+            len = itemTypes.length;
+            for (let i = 0; i < len; ++i) {
+                if ((i & 0xFF) === 0) { // 256 - 1
+                    throttlers.push(new Promise(resolve => {
+                        setTimeout(resolve, 0);
+                    }));
+                }
+            }
             // convert `item*` into an object form, and construct word indices.
             //
             // before any analysis is performed lets gather the search terms to
@@ -1915,6 +1929,9 @@ class DocSearch {
             let lastName = "";
             let lastWord = "";
             for (let i = 0; i < len; ++i) {
+                if ((i & 0xFF) === 0) { // 256 - 1
+                    await throttlers[i >> 8];
+                }
                 const bitIndex = i + 1;
                 if (descIndex >= descShard.len &&
                     !this.searchIndexEmptyDesc.get(crate).contains(bitIndex)) {
@@ -4864,17 +4881,19 @@ function updateCrate(ev) {
     search(true);
 }
 
-function initSearch(searchIndx) {
+async function initSearch(searchIndx) {
     rawSearchIndex = searchIndx;
     if (typeof window !== "undefined") {
-        docSearch = new DocSearch(rawSearchIndex, ROOT_PATH, searchState);
+        docSearch = new DocSearch(ROOT_PATH, searchState);
+        docSearch.searchIndex = await docSearch.buildIndex(rawSearchIndex);
         registerSearchEvents();
         // If there's a search term in the URL, execute the search now.
         if (window.searchState.getQueryStringParams().search !== undefined) {
             search();
         }
     } else if (typeof exports !== "undefined") {
-        docSearch = new DocSearch(rawSearchIndex, ROOT_PATH, searchState);
+        docSearch = new DocSearch(ROOT_PATH, searchState);
+        docSearch.searchIndex = await docSearch.buildIndex(rawSearchIndex);
         exports.docSearch = docSearch;
         exports.parseQuery = DocSearch.parseQuery;
     }
