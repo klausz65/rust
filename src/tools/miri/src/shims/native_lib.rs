@@ -168,6 +168,9 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.prepare_for_native_call(alloc_id, prov)?;
             }
         }
+        
+        // FIXME: In the future, we should also call `prepare_for_native_call` on all previously
+        // exposed allocations, since C may access any of them.
 
         // Convert them to `libffi::high::Arg` type.
         let libffi_args = libffi_args
