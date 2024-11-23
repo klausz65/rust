@@ -13,6 +13,8 @@ fn main() {
 
     test_swap_ptr();
 
+    test_init_interior_mutable();
+
     test_dangling();
 }
 
@@ -43,19 +45,18 @@ fn test_init_int() {
 
 fn test_init_array() {
     extern "C" {
-        fn init_array(ptr: *mut i32, len: usize, value: i32);
+        fn init_array(ptr: *mut i32, len: usize);
     }
 
-    const LEN: usize = 4;
-    let init_value = 41;
+    const LEN: usize = 3;
 
     let mut array = MaybeUninit::<[i32; LEN]>::uninit();
     let array = unsafe {
-        init_array(array.as_mut_ptr().cast::<i32>(), LEN, init_value);
+        init_array(array.as_mut_ptr().cast::<i32>(), LEN);
         array.assume_init()
     };
 
-    assert_eq!(array, [init_value; LEN]);
+    assert_eq!(array, [31; LEN]);
 }
 
 fn test_swap_ptr() {
@@ -63,35 +64,41 @@ fn test_swap_ptr() {
         fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
     }
 
-    let x = 51;
-    let mut ptr0 = &x;
+    let x = 41;
+    let mut ptr0 = &raw const x;
     let mut ptr1 = std::ptr::null();
     unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
 
     assert_eq!(unsafe { *ptr1 }, x);
 }
 
-fn test_init_static_inner() {
+fn test_init_interior_mutable() {
     extern "C" {
-        fn init_static_inner(pptr: *const *mut MaybeUninit<i32>);
+        fn init_interior_mutable(pptr: *const UnsafeInterior);
     }
 
-    static mut INNER: MaybeUninit<i32> = MaybeUninit::uninit();
-    static STATIC: *mut MaybeUninit<i32> = &raw mut INNER;
-    unsafe { init_static_inner(&STATIC) }
+    #[repr(C)]
+    struct UnsafeInterior {
+        mut_ptr: *mut i32
+    }
+    unsafe impl Sync for UnsafeInterior {}
+    
+    let mut x = MaybeUninit::<i32>::uninit();
+    let unsafe_interior = UnsafeInterior { mut_ptr: x.as_mut_ptr() };
+    unsafe { init_interior_mutable(&unsafe_interior) };
 
-    assert_eq!(unsafe { INNER.assume_init() }, 61);
+    assert_eq!(unsafe { x.assume_init() }, 51);
 }
 
 fn test_dangling() {
     extern "C" {
-        fn write_nullptr(pptr: *mut *const i32);
+        fn overwrite_ptr(pptr: *mut *const i32);
     }
 
-    let x = vec![71];
+    let x = vec![61];
     let mut ptr = x.as_ptr();
     drop(x);
-    unsafe { write_nullptr(&mut ptr) };
+    unsafe { overwrite_ptr(&mut ptr) };
     assert_eq!(ptr, std::ptr::null());
 }
 

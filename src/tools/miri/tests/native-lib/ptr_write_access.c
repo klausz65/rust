@@ -12,14 +12,14 @@ EXPORT void modify_int(int *ptr) {
 /* Test: test_init_int */
 
 EXPORT void init_int(int *ptr) {
-  *ptr = 12;
+  *ptr = 21;
 }
 
 /* Test: test_init_array */
 
-EXPORT void init_array(int *array, size_t len, int value) {
+EXPORT void init_array(int *array, size_t len) {
   for (size_t i = 0; i < len; i++) {
-    array[i] = value;
+    array[i] = 31;
   }
 }
 
@@ -31,14 +31,18 @@ EXPORT void swap_ptr(const int **pptr0, const int **pptr1) {
   *pptr1 = tmp;
 }
 
-/* Test: test_init_static_inner */
+/* Test: test_init_interior_mutable */
 
-EXPORT void init_static_inner(int **const pptr) {
-  **pptr = 1234;
+typedef struct UnsafeInterior {
+    int *mut_ptr;
+} UnsafeInterior;
+
+EXPORT void init_interior_mutable(const UnsafeInterior *u_ptr) {
+  *(u_ptr->mut_ptr) = 51;
 }
 
 /* Test: test_dangling */
 
-EXPORT void write_nullptr(const int **pptr) {
+EXPORT void overwrite_ptr(const int **pptr) {
   *pptr = NULL;
 }
