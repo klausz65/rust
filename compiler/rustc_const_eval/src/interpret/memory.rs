@@ -968,7 +968,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
 
             let alloc = self.get_alloc_raw(id)?;
             for prov in alloc.provenance().provenances() {
-                //M::expose_provenance(self, prov)?; // TODO: mutable borrow here gives issues due to provenances iterator lifetime...
+                M::expose_provenance(self, prov)?;
                 if let Some(id) = prov.get_alloc_id() {
                     todo.push(id);
                 }

@@ -586,7 +586,7 @@ impl<'tcx> interpret::Machine<'tcx> for CompileTimeMachine<'tcx> {
 
     #[inline(always)]
     fn expose_provenance(
-        _ecx: &mut InterpCx<'tcx, Self>,
+        _ecx: &InterpCx<'tcx, Self>,
         _provenance: Self::Provenance,
     ) -> InterpResult<'tcx> {
         // This is only reachable with -Zunleash-the-miri-inside-of-you.

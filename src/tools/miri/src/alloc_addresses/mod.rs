@@ -286,9 +286,9 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
 impl<'tcx> EvalContextExt<'tcx> for crate::MiriInterpCx<'tcx> {}
 pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
-    fn expose_ptr(&mut self, alloc_id: AllocId, tag: BorTag) -> InterpResult<'tcx> {
-        let this = self.eval_context_mut();
-        let global_state = this.machine.alloc_addresses.get_mut();
+    fn expose_ptr(&self, alloc_id: AllocId, tag: BorTag) -> InterpResult<'tcx> {
+        let this = self.eval_context_ref();
+        let mut global_state = this.machine.alloc_addresses.borrow_mut();
         // In strict mode, we don't need this, so we can save some cycles by not tracking it.
         if global_state.provenance_mode == ProvenanceMode::Strict {
             return interp_ok(());
@@ -299,7 +299,6 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             return interp_ok(());
         }
         trace!("Exposing allocation id {alloc_id:?}");
-        let global_state = this.machine.alloc_addresses.get_mut();
         global_state.exposed.insert(alloc_id);
         if this.machine.borrow_tracker.is_some() {
             this.expose_tag(alloc_id, tag)?;

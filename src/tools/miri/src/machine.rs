@@ -1244,7 +1244,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
     /// Called on `ptr as usize` casts.
     /// (Actually computing the resulting `usize` doesn't need machine help,
     /// that's just `Scalar::try_to_int`.)
-    fn expose_provenance(ecx: &mut InterpCx<'tcx, Self>, provenance: Self::Provenance) -> InterpResult<'tcx> {
+    fn expose_provenance(ecx: &InterpCx<'tcx, Self>, provenance: Self::Provenance) -> InterpResult<'tcx> {
         match provenance {
             Provenance::Concrete { alloc_id, tag } => ecx.expose_ptr(alloc_id, tag),
             Provenance::Wildcard => {
