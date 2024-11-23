@@ -95,6 +95,16 @@ pub(crate) struct FnItemRef {
     pub ident: String,
 }
 
+#[derive(LintDiagnostic)]
+#[diag(mir_transform_large_assignments)]
+#[note]
+pub(crate) struct LargeAssignmentsLint {
+    #[label]
+    pub span: Span,
+    pub size: u64,
+    pub limit: u64,
+}
+
 #[derive(Diagnostic)]
 #[diag(mir_transform_exceeds_mcdc_test_vector_limit)]
 pub(crate) struct MCDCExceedsTestVectorLimit {
@@ -142,3 +152,35 @@ pub(crate) struct MustNotSuspendReason {
 #[note(mir_transform_note2)]
 #[help]
 pub(crate) struct UndefinedTransmute;
+
+#[derive(LintDiagnostic)]
+#[diag(mir_transform_abi_error_disabled_vector_type_def)]
+#[help]
+pub(crate) struct AbiErrorDisabledVectorTypeDef<'a> {
+    #[label]
+    pub span: Span,
+    pub required_feature: &'a str,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(mir_transform_abi_error_disabled_vector_type_call)]
+#[help]
+pub(crate) struct AbiErrorDisabledVectorTypeCall<'a> {
+    #[label]
+    pub span: Span,
+    pub required_feature: &'a str,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(mir_transform_abi_error_unsupported_vector_type_def)]
+pub(crate) struct AbiErrorUnsupportedVectorTypeDef {
+    #[label]
+    pub span: Span,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(mir_transform_abi_error_unsupported_vector_type_call)]
+pub(crate) struct AbiErrorUnsupportedVectorTypeCall {
+    #[label]
+    pub span: Span,
+}

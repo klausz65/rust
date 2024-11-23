@@ -29,7 +29,7 @@ use rustc_middle::mir::{
     MirPhase, Operand, Place, ProjectionElem, Promoted, RuntimePhase, Rvalue, START_BLOCK,
     SourceInfo, Statement, StatementKind, TerminatorKind,
 };
-use rustc_middle::ty::{self, TyCtxt, TypeVisitableExt};
+use rustc_middle::ty::{self, Instance, TyCtxt, TypeVisitableExt};
 use rustc_middle::util::Providers;
 use rustc_middle::{bug, query, span_bug};
 use rustc_span::source_map::Spanned;
@@ -51,6 +51,7 @@ mod errors;
 mod ffi_unwind_calls;
 mod lint;
 mod lint_tail_expr_drop_order;
+mod mono_checks;
 mod shim;
 mod ssa;
 
@@ -138,11 +139,14 @@ declare_passes! {
     mod elaborate_box_derefs : ElaborateBoxDerefs;
     mod elaborate_drops : ElaborateDrops;
     mod function_item_references : FunctionItemReferences;
-    mod gvn : GVN;
+    mod gvn : GVN {
+        Polymorphic,
+        PostMono
+    };
     // Made public so that `mir_drops_elaborated_and_const_checked` can be overridden
     // by custom rustc drivers, running all the steps by themselves. See #114628.
     pub mod inline : Inline;
-    mod instsimplify : InstSimplify { BeforeInline, AfterSimplifyCfg };
+    mod instsimplify : InstSimplify { BeforeInline, AfterSimplifyCfg, PostMono };
     mod jump_threading : JumpThreading;
     mod known_panics_lint : KnownPanicsLint;
     mod large_enums : EnumSizeOpt;
@@ -175,7 +179,8 @@ declare_passes! {
             PreOptimizations,
             Final,
             MakeShim,
-            AfterUnreachableEnumBranching
+            AfterUnreachableEnumBranching,
+            PostMono
         },
         SimplifyLocals {
             BeforeConstProp,
@@ -184,7 +189,8 @@ declare_passes! {
         };
     mod simplify_branches : SimplifyConstCondition {
         AfterConstProp,
-        Final
+        Final,
+        PostMono
     };
     mod simplify_comparison_integral : SimplifyComparisonIntegral;
     mod single_use_consts : SingleUseConsts;
@@ -201,6 +207,7 @@ pub fn provide(providers: &mut Providers) {
     ffi_unwind_calls::provide(providers);
     shim::provide(providers);
     cross_crate_inline::provide(providers);
+    mono_checks::provide(providers);
     providers.queries = query::Providers {
         mir_keys,
         mir_built,
@@ -217,6 +224,7 @@ pub fn provide(providers: &mut Providers) {
         promoted_mir,
         deduced_param_attrs: deduce_param_attrs::deduced_param_attrs,
         coroutine_by_move_body_def_id: coroutine::coroutine_by_move_body_def_id,
+        build_codegen_mir,
         ..providers.queries
     };
 }
@@ -642,11 +650,11 @@ fn run_runtime_cleanup_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
     }
 }
 
-fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
-    fn o1<T>(x: T) -> WithMinOptLevel<T> {
-        WithMinOptLevel(1, x)
-    }
+fn o1<T>(x: T) -> WithMinOptLevel<T> {
+    WithMinOptLevel(1, x)
+}
 
+fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
     // The main optimizations that we do on MIR.
     pm::run_passes(
         tcx,
@@ -687,7 +695,7 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &instsimplify::InstSimplify::AfterSimplifyCfg,
             &simplify::SimplifyLocals::BeforeConstProp,
             &dead_store_elimination::DeadStoreElimination::Initial,
-            &gvn::GVN,
+            &gvn::GVN::Polymorphic,
             &simplify::SimplifyLocals::AfterGVN,
             &dataflow_const_prop::DataflowConstProp,
             &single_use_consts::SingleUseConsts,
@@ -706,13 +714,9 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
-            // Some cleanup necessary at least for LLVM and potentially other codegen backends.
-            &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.
             &prettify::ReorderBasicBlocks,
             &prettify::ReorderLocals,
-            // Dump the end result for testing and debugging purposes.
-            &dump_mir::Marker("PreCodegen"),
         ],
         Some(MirPhase::Runtime(RuntimePhase::Optimized)),
     );
@@ -763,6 +767,37 @@ fn inner_optimized_mir(tcx: TyCtxt<'_>, did: LocalDefId) -> Body<'_> {
     }
 
     run_optimization_passes(tcx, &mut body);
+
+    body
+}
+
+pub fn build_codegen_mir<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> Body<'tcx> {
+    let body = tcx.instance_mir(instance.def);
+    let mut body = instance.instantiate_mir_and_normalize_erasing_regions(
+        tcx,
+        ty::TypingEnv::fully_monomorphized(),
+        ty::EarlyBinder::bind(body.clone()),
+    );
+
+    pm::run_passes_no_validate(
+        tcx,
+        &mut body,
+        &[
+            &gvn::GVN::PostMono,
+            // FIXME: Enabling this InstSimplify is required to fix the MIR from the
+            // unreachable_unchecked precondition check that UnreachablePropagation creates, but
+            // also enabling it breaks tests/codegen/issues/issue-122600-ptr-discriminant-update.rs
+            // LLVM appears to handle switches on i64 better than it handles icmp eq + br.
+            &instsimplify::InstSimplify::PostMono,
+            &o1(simplify_branches::SimplifyConstCondition::PostMono),
+            &o1(simplify::SimplifyCfg::PostMono),
+            &add_call_guards::CriticalCallEdges,
+            &dump_mir::Marker("PreCodegen"),
+        ],
+        None,
+    );
+
+    mono_checks::check_mono_item(tcx, instance, &body);
 
     body
 }

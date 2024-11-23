@@ -53,15 +53,7 @@ fn fn_sig_for_fn_abi<'tcx>(
             //
             // We normalize the `fn_sig` again after instantiating at a later point.
             let mut sig = match *ty.kind() {
-                ty::FnDef(def_id, args) => tcx
-                    .fn_sig(def_id)
-                    .map_bound(|fn_sig| {
-                        tcx.normalize_erasing_regions(
-                            ty::TypingEnv::non_body_analysis(tcx, def_id),
-                            fn_sig,
-                        )
-                    })
-                    .instantiate(tcx, args),
+                ty::FnDef(def_id, args) => tcx.fn_sig(def_id).instantiate(tcx, args),
                 _ => unreachable!(),
             };
 
