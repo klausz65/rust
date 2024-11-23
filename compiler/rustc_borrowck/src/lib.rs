@@ -1714,11 +1714,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                 },
                 // `OpaqueCast`: only transmutes the type, so no moves there.
                 // `Downcast`  : only changes information about a `Place` without moving.
-                // `Subtype`   : only transmutes the type, so no moves.
                 // So it's safe to skip these.
-                ProjectionElem::OpaqueCast(_)
-                | ProjectionElem::Subtype(_)
-                | ProjectionElem::Downcast(_, _) => (),
+                ProjectionElem::OpaqueCast(_) | ProjectionElem::Downcast(_, _) => (),
             }
 
             place_ty = place_ty.projection_ty(tcx, elem);
@@ -1942,7 +1939,6 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
         for (place_base, elem) in place.iter_projections().rev() {
             match elem {
                 ProjectionElem::Index(_/*operand*/) |
-                ProjectionElem::Subtype(_) |
                 ProjectionElem::OpaqueCast(_) |
                 ProjectionElem::ConstantIndex { .. } |
                 // assigning to P[i] requires P to be valid.
@@ -2334,7 +2330,6 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                     | ProjectionElem::Index(..)
                     | ProjectionElem::ConstantIndex { .. }
                     | ProjectionElem::Subslice { .. }
-                    | ProjectionElem::Subtype(..)
                     | ProjectionElem::OpaqueCast { .. }
                     | ProjectionElem::Downcast(..) => {
                         let upvar_field_projection = self.is_upvar_field_projection(place);

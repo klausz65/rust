@@ -287,7 +287,6 @@ fn check_place<'tcx>(tcx: TyCtxt<'tcx>, place: Place<'tcx>, span: Span, body: &B
             | ProjectionElem::OpaqueCast(..)
             | ProjectionElem::Downcast(..)
             | ProjectionElem::Subslice { .. }
-            | ProjectionElem::Subtype(_)
             | ProjectionElem::Index(_) => {},
         }
     }
