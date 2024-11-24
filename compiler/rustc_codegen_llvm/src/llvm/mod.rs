@@ -22,7 +22,11 @@ use crate::common::AsCCharPtr;
 
 pub mod archive_ro;
 pub mod diagnostic;
+pub mod enzyme_ffi;
 mod ffi;
+
+pub use self::enzyme_ffi::*;
+pub use self::ffi::*;
 
 impl LLVMRustResult {
     pub fn into_result(self) -> Result<(), ()> {
@@ -38,6 +42,11 @@ pub fn AddFunctionAttributes<'ll>(llfn: &'ll Value, idx: AttributePlace, attrs: 
         LLVMRustAddFunctionAttributes(llfn, idx.as_uint(), attrs.as_ptr(), attrs.len());
     }
 }
+//pub fn RemoveFunctionAttributes<'ll>(llfn: &'ll Value, idx: AttributePlace, attrs: &[&'ll Attribute]) {
+//    unsafe {
+//        LLVMRustRemoveFunctionAttributes(llfn, idx.as_uint(), attrs.as_ptr(), attrs.len());
+//    }
+//}
 
 pub fn AddCallSiteAttributes<'ll>(
     callsite: &'ll Value,
@@ -194,6 +203,10 @@ pub fn set_thread_local_mode(global: &Value, mode: ThreadLocalMode) {
     unsafe {
         LLVMSetThreadLocalMode(global, mode);
     }
+}
+
+pub fn create_md_string<'a>(llcx: &'a Context, s: &str) -> &'a Metadata {
+    unsafe { LLVMMDStringInContext2(llcx, s.as_c_char_ptr(), s.len()) }
 }
 
 impl AttributeKind {
