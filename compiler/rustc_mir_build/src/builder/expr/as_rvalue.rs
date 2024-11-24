@@ -16,9 +16,9 @@ use rustc_span::source_map::Spanned;
 use rustc_span::{DUMMY_SP, Span};
 use tracing::debug;
 
-use crate::build::expr::as_place::PlaceBase;
-use crate::build::expr::category::{Category, RvalueFunc};
-use crate::build::{BlockAnd, BlockAndExtension, Builder, NeedsTemporary};
+use crate::builder::expr::as_place::PlaceBase;
+use crate::builder::expr::category::{Category, RvalueFunc};
+use crate::builder::{BlockAnd, BlockAndExtension, Builder, NeedsTemporary};
 
 impl<'a, 'tcx> Builder<'a, 'tcx> {
     /// Returns an rvalue suitable for use until the end of the current
@@ -231,7 +231,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             if range.start <= range.end { BinOp::BitAnd } else { BinOp::BitOr };
 
                         let mut comparer = |range: u128, bin_op: BinOp| -> Place<'tcx> {
-                            // We can use `ty::TypingEnv::fully_monomorphized()`` here
+                            // We can use `ty::TypingEnv::fully_monomorphized()` here
                             // as we only need it to compute the layout of a primitive.
                             let range_val = Const::from_bits(
                                 this.tcx,
