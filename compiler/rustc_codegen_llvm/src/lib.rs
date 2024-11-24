@@ -400,7 +400,6 @@ impl CodegenBackend for LlvmCodegenBackend {
     }
 }
 
-#[allow(dead_code)]
 pub struct ModuleLlvm {
     llcx: &'static mut llvm::Context,
     llmod_raw: *const llvm::Module,

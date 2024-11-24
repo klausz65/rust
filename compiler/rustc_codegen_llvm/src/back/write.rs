@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, slice, str};
 
-use libc::{c_char, c_int, c_uint, c_void, size_t};
+use libc::{c_char, c_int, c_void, size_t};
 use llvm::{
     LLVMRustLLVMHasZlibCompressionForDebugSymbols, LLVMRustLLVMHasZstdCompressionForDebugSymbols,
 };
@@ -41,14 +41,8 @@ use crate::errors::{
     CopyBitcode, FromLlvmDiag, FromLlvmOptimizationDiag, LlvmError, UnknownCompression,
     WithLlvmError, WriteBytecode,
 };
-use crate::llvm::AttributePlace::Function;
 use crate::llvm::diagnostic::OptimizationDiagnosticKind::*;
-use crate::llvm::{
-    self, AttributeKind, DiagnosticInfo, LLVMGetFirstFunction,
-    LLVMGetNextFunction, LLVMGetStringAttributeAtIndex, LLVMIsEnumAttribute, LLVMIsStringAttribute,
-    LLVMRemoveStringAttributeAtIndex, LLVMRustGetEnumAttributeAtIndex,
-    LLVMRustRemoveEnumAttributeAtIndex, PassManager,
-};
+use crate::llvm::{self, DiagnosticInfo, PassManager};
 use crate::type_::Type;
 use crate::{LlvmCodegenBackend, ModuleLlvm, base, common, llvm_util};
 
@@ -689,39 +683,8 @@ pub(crate) fn differentiate(
         crate::builder::generate_enzyme_call(llmod, llcx, fn_def, fn_target, item.attrs.clone());
     }
 
-    // We needed the SanitizeHWAddress attribute to prevent LLVM from optimizing enums in a way
-    // which Enzyme doesn't understand.
-    unsafe {
-        let mut f = LLVMGetFirstFunction(llmod);
-        loop {
-            if let Some(lf) = f {
-                f = LLVMGetNextFunction(lf);
-                let myhwattr = "enzyme_hw";
-                let attr = LLVMGetStringAttributeAtIndex(
-                    lf,
-                    c_uint::MAX,
-                    myhwattr.as_ptr() as *const c_char,
-                    myhwattr.as_bytes().len() as c_uint,
-                );
-                if LLVMIsStringAttribute(attr) {
-                    LLVMRemoveStringAttributeAtIndex(
-                        lf,
-                        c_uint::MAX,
-                        myhwattr.as_ptr() as *const c_char,
-                        myhwattr.as_bytes().len() as c_uint,
-                    );
-                } else {
-                    LLVMRustRemoveEnumAttributeAtIndex(
-                        lf,
-                        c_uint::MAX,
-                        AttributeKind::SanitizeHWAddress,
-                    );
-                }
-            } else {
-                break;
-            }
-        }
-    }
+    // FIXME(ZuseZ4): In the following upstream PR, we want to add code to handle SanitizeHWAddress,
+    // to prevent some illegal/unsupported optimizations.
 
     if let Some(opt_level) = config.opt_level {
         let opt_stage = match cgcx.lto {
@@ -773,35 +736,8 @@ pub(crate) unsafe fn optimize(
         unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
 
-    // This code enables Enzyme to differentiate code containing Rust enums.
-    // By adding the SanitizeHWAddress attribute we prevent LLVM from Optimizing
-    // away the enums and allows Enzyme to understand why a value can be of different types in
-    // different code sections. We remove this attribute after Enzyme is done, to not affect the
-    // rest of the compilation.
-    //#[cfg(llvm_enzyme)]
-    unsafe {
-        let mut f = LLVMGetFirstFunction(llmod);
-        loop {
-            if let Some(lf) = f {
-                f = LLVMGetNextFunction(lf);
-                let myhwattr = "enzyme_hw";
-                let prevattr = LLVMRustGetEnumAttributeAtIndex(
-                    lf,
-                    c_uint::MAX,
-                    AttributeKind::SanitizeHWAddress,
-                );
-                if LLVMIsEnumAttribute(prevattr) {
-                    let attr = llvm::CreateAttrString(llcx, myhwattr);
-                    crate::attributes::apply_to_llfn(lf, Function, &[attr]);
-                } else {
-                    let attr = AttributeKind::SanitizeHWAddress.create_attr(llcx);
-                    crate::attributes::apply_to_llfn(lf, Function, &[attr]);
-                }
-            } else {
-                break;
-            }
-        }
-    }
+    // FIXME(ZuseZ4): In the following PR, we have to add code to apply the sanitize_hwaddress
+    // attribute to all functions in the module, to prevent some illegal/unsupported optimizations.
 
     if let Some(opt_level) = config.opt_level {
         let opt_stage = match cgcx.lto {

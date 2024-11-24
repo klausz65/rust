@@ -259,6 +259,7 @@ pub(crate) fn generate_enzyme_call<'ll>(
         }
         // Now that we copied the metadata, get rid of dummy code.
         llvm::LLVMRustEraseInstBefore(entry, last_inst);
+        llvm::LLVMRustEraseInstFromParent(last_inst);
 
         let void_ty = llvm::LLVMVoidTypeInContext(llcx);
         if llvm::LLVMTypeOf(call) != void_ty {

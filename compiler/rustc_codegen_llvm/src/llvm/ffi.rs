@@ -1661,12 +1661,6 @@ unsafe extern "C" {
         Attrs: *const &'a Attribute,
         AttrsLen: size_t,
     );
-    pub fn LLVMRustRemoveFunctionAttributes<'a>(
-        Fn: &'a Value,
-        index: c_uint,
-        Attrs: *const &'a Attribute,
-        AttrsLen: size_t,
-    );
 
     // Operations on call sites
     pub fn LLVMRustAddCallSiteAttributes<'a>(

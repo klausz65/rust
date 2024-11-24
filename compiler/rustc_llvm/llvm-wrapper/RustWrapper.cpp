@@ -404,20 +404,9 @@ extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef Fn) {
   return wrap(Ftype);
 }
 
-extern "C" void LLVMRustRemoveEnumAttributeAtIndex(LLVMValueRef F, size_t index,
-                                                   LLVMRustAttribute RustAttr) {
-  LLVMRemoveEnumAttributeAtIndex(F, index, fromRust(RustAttr));
-}
-
 extern "C" LLVMAttributeRef
 LLVMRustCreateAttrNoValue(LLVMContextRef C, LLVMRustAttributeKind RustAttr) {
   return wrap(Attribute::get(*unwrap(C), fromRust(RustAttr)));
-}
-
-extern "C" LLVMAttributeRef
-LLVMRustGetEnumAttributeAtIndex(LLVMValueRef F, size_t index,
-                                LLVMRustAttribute RustAttr) {
-  return LLVMGetEnumAttributeAtIndex(F, index, fromRust(RustAttr));
 }
 
 extern "C" LLVMAttributeRef LLVMRustCreateAlignmentAttr(LLVMContextRef C,
@@ -994,7 +983,10 @@ extern "C" void LLVMRustEraseInstBefore(LLVMBasicBlockRef bb, LLVMValueRef I) {
   auto It = BB.begin();
   while (&*It != &Inst)
     ++It;
+  // Make sure we found the Instruction.
   assert(It != BB.end());
+  // We don't want to erase the instruction itself.
+  It--;
   // Delete in rev order to ensure no dangling references.
   while (It != BB.begin()) {
     auto Prev = std::prev(It);

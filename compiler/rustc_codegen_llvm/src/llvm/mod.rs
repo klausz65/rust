@@ -26,7 +26,6 @@ pub mod enzyme_ffi;
 mod ffi;
 
 pub use self::enzyme_ffi::*;
-pub use self::ffi::*;
 
 impl LLVMRustResult {
     pub fn into_result(self) -> Result<(), ()> {
@@ -42,11 +41,6 @@ pub fn AddFunctionAttributes<'ll>(llfn: &'ll Value, idx: AttributePlace, attrs: 
         LLVMRustAddFunctionAttributes(llfn, idx.as_uint(), attrs.as_ptr(), attrs.len());
     }
 }
-//pub fn RemoveFunctionAttributes<'ll>(llfn: &'ll Value, idx: AttributePlace, attrs: &[&'ll Attribute]) {
-//    unsafe {
-//        LLVMRustRemoveFunctionAttributes(llfn, idx.as_uint(), attrs.as_ptr(), attrs.len());
-//    }
-//}
 
 pub fn AddCallSiteAttributes<'ll>(
     callsite: &'ll Value,
