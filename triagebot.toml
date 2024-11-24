@@ -247,6 +247,15 @@ trigger_labels = [
     "A-rustdoc-js",
 ]
 
+trigger_files = [
+    "src/librustdoc/html/",
+    "tests/rustdoc/",
+    "tests/rustdoc-gui/",
+    "tests/rustdoc-js/",
+    "tests/rustdoc-js-std/",
+    # note: tests/rustdoc-ui tests the CLI, not the web frontend
+]
+
 [autolabel."A-rustdoc-search"]
 trigger_files = [
     "src/librustdoc/html/static/js/search.js",
