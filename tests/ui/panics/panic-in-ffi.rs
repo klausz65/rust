@@ -1,8 +1,8 @@
 //@ run-fail
 //@ exec-env:RUST_BACKTRACE=0
 //@ check-run-results
-//@ error-pattern: panic in a function that cannot unwind
-//@ error-pattern: Noisy Drop
+//@ check-run-results: panic in a function that cannot unwind
+//@ check-run-results: Noisy Drop
 //@ normalize-stderr-test: "\n +[0-9]+:[^\n]+" -> ""
 //@ normalize-stderr-test: "\n +at [^\n]+" -> ""
 //@ normalize-stderr-test: "(core/src/panicking\.rs):[0-9]+:[0-9]+" -> "$1:$$LINE:$$COL"
