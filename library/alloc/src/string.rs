@@ -3215,7 +3215,7 @@ impl Iterator for IntoChars {
             None => None,
             Some((_, ch)) => {
                 let offset = iter.offset();
-                // SAFETY: `offset` is a valid index.
+                // `offset` is a valid index.
                 let _ = self.bytes.advance_by(offset);
                 Some(ch)
             }
@@ -3247,7 +3247,7 @@ impl DoubleEndedIterator for IntoChars {
         match iter.next_back() {
             None => None,
             Some((idx, ch)) => {
-                // SAFETY: `idx` is a valid index.
+                // `idx` is a valid index.
                 let _ = self.bytes.advance_back_by(len - idx);
                 Some(ch)
             }
