@@ -360,7 +360,6 @@
 #![feature(std_internals)]
 #![feature(str_internals)]
 #![feature(strict_provenance_atomic_ptr)]
-#![feature(sync_unsafe_cell)]
 #![feature(ub_checks)]
 // tidy-alphabetical-end
 //
