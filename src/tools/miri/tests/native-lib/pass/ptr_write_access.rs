@@ -2,6 +2,8 @@
 //@ignore-target: windows wasm
 //@only-on-host
 
+#![feature(box_as_ptr)]
+
 use std::mem::MaybeUninit;
 
 fn main() {
@@ -11,11 +13,13 @@ fn main() {
 
     test_init_array();
 
-    test_swap_ptr();
-
     test_init_interior_mutable();
 
-    test_dangling();
+    test_swap_ptr();
+
+    test_interact_dangling();
+
+    test_inner_alloc_exposed();
 }
 
 fn test_modify_int() {
@@ -59,19 +63,6 @@ fn test_init_array() {
     assert_eq!(array, [31; LEN]);
 }
 
-fn test_swap_ptr() {
-    extern "C" {
-        fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
-    }
-
-    let x = 41;
-    let mut ptr0 = &raw const x;
-    let mut ptr1 = std::ptr::null();
-    unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
-
-    assert_eq!(unsafe { *ptr1 }, x);
-}
-
 fn test_init_interior_mutable() {
     extern "C" {
         fn init_interior_mutable(pptr: *const UnsafeInterior);
@@ -90,16 +81,42 @@ fn test_init_interior_mutable() {
     assert_eq!(unsafe { x.assume_init() }, 51);
 }
 
-fn test_dangling() {
+fn test_swap_ptr() {
+    extern "C" {
+        fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
+    }
+
+    let x = 41;
+    let mut ptr0 = &raw const x;
+    let mut ptr1 = std::ptr::null();
+    unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
+
+    assert_eq!(unsafe { *ptr1 }, x);
+}
+
+fn test_interact_dangling() {
     extern "C" {
         fn overwrite_ptr(pptr: *mut *const i32);
     }
 
-    let x = vec![61];
-    let mut ptr = x.as_ptr();
+    let x = Box::new(61);
+    let mut ptr = Box::as_ptr(&x);
     drop(x);
     unsafe { overwrite_ptr(&mut ptr) };
+
     assert_eq!(ptr, std::ptr::null());
 }
 
-// TODO: Write tests for (forgetting to) expose: -initial allocation -recursively all allocations -unexposed pointers.
+// TODO: Write tests for correctly exposing: [initial allocation; recursively all allocations; previously unexposed pointers].
+fn test_inner_alloc_exposed() {
+    extern "C" {
+        fn blackbox(ptr: *mut *mut *const i32);
+    }
+
+    let x = 71i32;
+    let mut ptr = &raw const x;
+    let mut pptr = &raw mut ptr;
+    unsafe { blackbox(&mut pptr) }
+
+    assert_eq!(unsafe { *ptr }, x);
+}

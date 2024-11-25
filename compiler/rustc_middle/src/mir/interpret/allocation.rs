@@ -646,7 +646,7 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
     /// Initialize all previously uninitialized bytes in the entire allocation, and set
     /// provenance of everything to `Wildcard`. Before calling this, make sure all
     /// provenance in this allocation is exposed!
-    pub fn prepare_for_native_call(&mut self, cx: &impl HasDataLayout) -> AllocResult {
+    pub fn prepare_for_native_call(&mut self) -> AllocResult {
         let full_range = AllocRange { start: Size::ZERO, size: Size::from_bytes(self.len()) };
         // Overwrite uninitialized bytes.
         for chunk in self.init_mask.range_as_init_chunks(full_range) {
@@ -660,7 +660,7 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
         self.mark_init(full_range, true);
 
         // Set provenance of all bytes to wildcard.
-        self.provenance.write_wildcards(self.len(), cx);
+        self.provenance.write_wildcards(self.len());
 
         Ok(())
     }

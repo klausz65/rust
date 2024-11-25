@@ -976,10 +976,9 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
 
             // Prepare for possible write from native code if mutable.
             if info.mutbl.is_mut() {
-                let tcx = self.tcx;
                 self.get_alloc_raw_mut(id)?
                     .0
-                    .prepare_for_native_call(&tcx)
+                    .prepare_for_native_call()
                     .map_err(|e| e.to_interp_error(id))?;
             }
         }

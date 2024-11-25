@@ -41,8 +41,14 @@ EXPORT void init_interior_mutable(const UnsafeInterior *u_ptr) {
   *(u_ptr->mut_ptr) = 51;
 }
 
-/* Test: test_dangling */
+/* Test: test_interact_dangling */
 
 EXPORT void overwrite_ptr(const int **pptr) {
   *pptr = NULL;
+}
+
+/* Test: test_initial_alloc_exposed */
+
+EXPORT void blackbox(__attribute__((unused)) const int ***_ppptr) {
+  return;
 }
