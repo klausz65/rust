@@ -956,9 +956,9 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         let mut todo = vec![id];
         while let Some(id) = todo.pop() {
             if !done.insert(id) {
+                // We already saw this allocation before, don't process it again.
                 continue;
             }
-            // This is a new allocation, add the allocations it points to to `todo`.
             let info = self.get_alloc_info(id);
 
             // If there is no data behind this pointer, skip this.
