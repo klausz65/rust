@@ -966,6 +966,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 continue;
             }
 
+            // Expose all provenances in this allocation, and add them to `todo`.
             let alloc = self.get_alloc_raw(id)?;
             for prov in alloc.provenance().provenances() {
                 M::expose_provenance(self, prov)?;
