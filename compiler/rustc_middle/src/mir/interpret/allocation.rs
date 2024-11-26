@@ -648,7 +648,7 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
     /// provenance in this allocation is exposed!
     pub fn prepare_for_native_call(&mut self) -> AllocResult {
         let full_range = AllocRange { start: Size::ZERO, size: Size::from_bytes(self.len()) };
-        // Overwrite uninitialized bytes.
+        // Overwrite uninitialized bytes with 0, to ensure we don't leak whatever their value happens to be.
         for chunk in self.init_mask.range_as_init_chunks(full_range) {
             if !chunk.is_init() {
                 let uninit_bytes = &mut self.bytes
