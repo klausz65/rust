@@ -195,8 +195,11 @@ impl<Prov: Provenance> ProvenanceMap<Prov> {
 
         Ok(())
     }
+
+    /// Overwrites all provenance in the allocation with wildcard provenance.
+    ///
+    /// Provided for usage in Miri and panics otherwise.
     pub fn write_wildcards(&mut self, alloc_size: usize) {
-        // We can only write wildcards in Miri.
         assert!(
             Prov::OFFSET_IS_ADDR,
             "writing wildcard provenance is not supported when `OFFSET_IS_ADDR` is false"

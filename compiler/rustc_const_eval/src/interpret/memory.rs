@@ -952,7 +952,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         // Expose provenance of the root allocation.
         M::expose_provenance(self, initial_prov)?;
 
-        let mut done = rustc_data_structures::fx::FxHashSet::default();
+        let mut done = FxHashSet::default();
         let mut todo = vec![id];
         while let Some(id) = todo.pop() {
             if !done.insert(id) {
@@ -979,7 +979,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
             if info.mutbl.is_mut() {
                 self.get_alloc_raw_mut(id)?
                     .0
-                    .prepare_for_native_call()
+                    .prepare_for_native_write()
                     .map_err(|e| e.to_interp_error(id))?;
             }
         }

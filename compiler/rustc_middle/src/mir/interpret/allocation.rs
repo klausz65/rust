@@ -646,7 +646,7 @@ impl<Prov: Provenance, Extra, Bytes: AllocBytes> Allocation<Prov, Extra, Bytes> 
     /// Initialize all previously uninitialized bytes in the entire allocation, and set
     /// provenance of everything to `Wildcard`. Before calling this, make sure all
     /// provenance in this allocation is exposed!
-    pub fn prepare_for_native_call(&mut self) -> AllocResult {
+    pub fn prepare_for_native_write(&mut self) -> AllocResult {
         let full_range = AllocRange { start: Size::ZERO, size: Size::from_bytes(self.len()) };
         // Overwrite uninitialized bytes with 0, to ensure we don't leak whatever their value happens to be.
         for chunk in self.init_mask.range_as_init_chunks(full_range) {
