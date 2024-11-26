@@ -40,6 +40,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         &mut self,
         link_name: Symbol,
         abi: ExternAbi,
+        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
         ret: Option<mir::BasicBlock>,
@@ -67,7 +68,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         }
 
         // The rest either implements the logic, or falls back to `lookup_exported_symbol`.
-        match this.emulate_foreign_item_inner(link_name, abi, args, dest)? {
+        match this.emulate_foreign_item_inner(link_name, abi,_fnabi, args, dest)? {
             EmulateItemResult::NeedsReturn => {
                 trace!("{:?}", this.dump_place(&dest.clone().into()));
                 this.return_to_block(ret)?;
@@ -219,6 +220,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
         &mut self,
         link_name: Symbol,
         abi: ExternAbi,
+        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {
@@ -277,7 +279,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
         match link_name.as_str() {
             // Miri-specific extern functions
             "miri_start_unwind" => {
-                let [payload] = this.check_shim(abi, ExternAbi::Rust, link_name, args)?;
+                let [payload] = this.check_shim(abi, _fnabi, ExternAbi::Rust, link_name, args)?;
                 this.handle_miri_start_unwind(payload)?;
                 return interp_ok(EmulateItemResult::NeedsUnwind);
             }
@@ -286,7 +288,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.run_provenance_gc();
             }
             "miri_get_alloc_id" => {
-                let [ptr] = this.check_shim(abi, ExternAbi::Rust, link_name, args)?;
+                let [ptr] = this.check_shim(abi, _fnabi, ExternAbi::Rust, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let (alloc_id, _, _) = this.ptr_get_alloc_id(ptr, 0).map_err_kind(|_e| {
                     err_machine_stop!(TerminationInfo::Abort(format!(
@@ -296,7 +298,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_scalar(Scalar::from_u64(alloc_id.0.get()), dest)?;
             }
             "miri_print_borrow_state" => {
-                let [id, show_unnamed] = this.check_shim(abi, ExternAbi::Rust, link_name, args)?;
+                let [id, show_unnamed] = this.check_shim(abi, _fnabi,  ExternAbi::Rust, link_name, args)?;
                 let id = this.read_scalar(id)?.to_u64()?;
                 let show_unnamed = this.read_scalar(show_unnamed)?.to_bool()?;
                 if let Some(id) = std::num::NonZero::new(id).map(AllocId)
