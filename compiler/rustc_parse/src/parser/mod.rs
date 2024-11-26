@@ -22,7 +22,8 @@ pub use pat::{CommaRecoveryMode, RecoverColon, RecoverComma};
 use path::PathStyle;
 use rustc_ast::ptr::P;
 use rustc_ast::token::{
-    self, Delimiter, IdentIsRaw, InvisibleOrigin, MetaVarKind, Nonterminal, Token, TokenKind,
+    self, Delimiter, IdentIsRaw, InvisibleOrigin, MetaVarKind, NtExprKind, NtPatKind, Token,
+    TokenKind,
 };
 use rustc_ast::tokenstream::{
     AttrsTarget, DelimSpacing, DelimSpan, Spacing, TokenStream, TokenTree, TokenTreeCursor,
@@ -35,7 +36,6 @@ use rustc_ast::{
 };
 use rustc_ast_pretty::pprust;
 use rustc_data_structures::fx::FxHashMap;
-use rustc_data_structures::sync::Lrc;
 use rustc_errors::{Applicability, Diag, FatalError, MultiSpan, PResult};
 use rustc_index::interval::IntervalSet;
 use rustc_session::parse::ParseSess;
@@ -96,32 +96,22 @@ pub enum ForceCollect {
     No,
 }
 
-#[macro_export]
-macro_rules! maybe_whole {
-    ($p:expr, $constructor:ident, |$x:ident| $e:expr) => {
-        if let token::Interpolated(nt) = &$p.token.kind
-            && let token::$constructor(x) = &**nt
-        {
-            #[allow(unused_mut)]
-            let mut $x = x.clone();
-            $p.bump();
-            return Ok($e);
-        }
-    };
-}
-
 /// If the next tokens are ill-formed `$ty::` recover them as `<$ty>::`.
 #[macro_export]
 macro_rules! maybe_recover_from_interpolated_ty_qpath {
     ($self: expr, $allow_qpath_recovery: expr) => {
         if $allow_qpath_recovery
             && $self.may_recover()
-            && $self.look_ahead(1, |t| t == &token::PathSep)
-            && let token::Interpolated(nt) = &$self.token.kind
-            && let token::NtTy(ty) = &**nt
+            && let Some(token::MetaVarKind::Ty) = $self.token.is_metavar_seq()
+            && $self.check_noexpect_past_close_delim(&token::PathSep)
         {
-            let ty = ty.clone();
-            $self.bump();
+            // Reparse the type, then move to recovery.
+            let ty = $self
+                .eat_metavar_seq(token::MetaVarKind::Ty, |this| {
+                    this.parse_ty_no_question_mark_recover()
+                })
+                .expect("metavar seq ty");
+
             return $self.maybe_recover_from_bad_qpath_stage_2($self.prev_token.span, ty);
         }
     };
@@ -304,12 +294,12 @@ impl TokenCursor {
             // below can be removed.
             if let Some(tree) = self.tree_cursor.next_ref() {
                 match tree {
-                    &TokenTree::Token(ref token, spacing) => {
+                    &TokenTree::Token(token, spacing) => {
                         debug_assert!(!matches!(
                             token.kind,
                             token::OpenDelim(_) | token::CloseDelim(_)
                         ));
-                        return (token.clone(), spacing);
+                        return (token, spacing);
                     }
                     &TokenTree::Delimited(sp, spacing, delim, ref tts) => {
                         let trees = tts.clone().into_trees();
@@ -447,7 +437,6 @@ pub fn token_descr(token: &Token) -> String {
         (Some(TokenDescription::MetaVar(kind)), _) => format!("`{kind}` metavariable"),
         (None, TokenKind::NtIdent(..)) => format!("identifier `{s}`"),
         (None, TokenKind::NtLifetime(..)) => format!("lifetime `{s}`"),
-        (None, TokenKind::Interpolated(node)) => format!("{} `{s}`", node.descr()),
         (None, _) => format!("`{s}`"),
     }
 }
@@ -600,7 +589,7 @@ impl<'a> Parser<'a> {
     fn check(&mut self, tok: &TokenKind) -> bool {
         let is_present = self.token == *tok;
         if !is_present {
-            self.expected_tokens.push(TokenType::Token(tok.clone()));
+            self.expected_tokens.push(TokenType::Token(*tok));
         }
         is_present
     }
@@ -609,6 +598,24 @@ impl<'a> Parser<'a> {
     #[must_use]
     fn check_noexpect(&self, tok: &TokenKind) -> bool {
         self.token == *tok
+    }
+
+    // Check the first token after the delimiter that closes the current
+    // delimited sequence. (Panics if used in the outermost token stream, which
+    // has no delimiters.) It uses a clone of the relevant tree cursor to skip
+    // past the entire `TokenTree::Delimited` in a single step, avoiding the
+    // need for unbounded token lookahead.
+    //
+    // Primarily used when `self.token` matches
+    // `OpenDelim(Delimiter::Invisible(_))`, to look ahead through the current
+    // metavar expansion.
+    fn check_noexpect_past_close_delim(&self, tok: &TokenKind) -> bool {
+        let mut tree_cursor = self.token_cursor.stack.last().unwrap().0.clone();
+        let tt = tree_cursor.next_ref();
+        matches!(
+            tt,
+            Some(ast::tokenstream::TokenTree::Token(token::Token { kind, .. }, _)) if kind == tok
+        )
     }
 
     /// Consumes a token 'tok' if it exists. Returns whether the given token was present.
@@ -720,6 +727,43 @@ impl<'a> Parser<'a> {
         if !self.eat_keyword(kw) { self.unexpected() } else { Ok(()) }
     }
 
+    /// Consume a sequence produced by a metavar expansion, if present.
+    fn eat_metavar_seq<T>(
+        &mut self,
+        mv_kind: MetaVarKind,
+        f: impl FnMut(&mut Parser<'a>) -> PResult<'a, T>,
+    ) -> Option<T> {
+        self.eat_metavar_seq_with_matcher(|mvk| mvk == mv_kind, f)
+    }
+
+    /// A slightly more general form of `eat_metavar_seq`, for use with the
+    /// `MetaVarKind` variants that have parameters, where an exact match isn't
+    /// desired.
+    fn eat_metavar_seq_with_matcher<T>(
+        &mut self,
+        match_mv_kind: impl Fn(MetaVarKind) -> bool,
+        mut f: impl FnMut(&mut Parser<'a>) -> PResult<'a, T>,
+    ) -> Option<T> {
+        if let token::OpenDelim(delim) = self.token.kind
+            && let Delimiter::Invisible(token::InvisibleOrigin::MetaVar(mv_kind)) = delim
+            && match_mv_kind(mv_kind)
+        {
+            self.bump();
+            let res = f(self).expect("failed to reparse {mv_kind:?}");
+            if let token::CloseDelim(delim) = self.token.kind
+                && let Delimiter::Invisible(token::InvisibleOrigin::MetaVar(mv_kind)) = delim
+                && match_mv_kind(mv_kind)
+            {
+                self.bump();
+                Some(res)
+            } else {
+                panic!("no close delim when reparsing {mv_kind:?}");
+            }
+        } else {
+            None
+        }
+    }
+
     /// Is the given keyword `kw` followed by a non-reserved identifier?
     fn is_kw_followed_by_ident(&self, kw: Symbol) -> bool {
         self.token.is_keyword(kw) && self.look_ahead(1, |t| t.is_ident() && !t.is_reserved_ident())
@@ -765,8 +809,10 @@ impl<'a> Parser<'a> {
     fn check_inline_const(&self, dist: usize) -> bool {
         self.is_keyword_ahead(dist, &[kw::Const])
             && self.look_ahead(dist + 1, |t| match &t.kind {
-                token::Interpolated(nt) => matches!(&**nt, token::NtBlock(..)),
                 token::OpenDelim(Delimiter::Brace) => true,
+                token::OpenDelim(Delimiter::Invisible(InvisibleOrigin::MetaVar(
+                    MetaVarKind::Block,
+                ))) => true,
                 _ => false,
             })
     }
@@ -1021,10 +1067,12 @@ impl<'a> Parser<'a> {
         let initial_semicolon = self.token.span;
 
         while self.eat(&TokenKind::Semi) {
-            let _ = self.parse_stmt_without_recovery(false, ForceCollect::No).unwrap_or_else(|e| {
-                e.cancel();
-                None
-            });
+            let _ = self
+                .parse_stmt_without_recovery(false, ForceCollect::No, false)
+                .unwrap_or_else(|e| {
+                    e.cancel();
+                    None
+                });
         }
 
         expect_err
@@ -1236,6 +1284,17 @@ impl<'a> Parser<'a> {
         looker(&token)
     }
 
+    /// Like `lookahead`, but skips over token trees rather than tokens. Useful
+    /// when looking past possible metavariable pasting sites.
+    pub fn tree_look_ahead<R>(&self, dist: usize, looker: impl FnOnce(&Token) -> R) -> Option<R> {
+        assert_ne!(dist, 0);
+
+        match self.token_cursor.tree_cursor.look_ahead(dist - 1) {
+            Some(TokenTree::Token(token, _)) => Some(looker(token)),
+            _ => None,
+        }
+    }
+
     /// Returns whether any of the given keywords are `dist` tokens ahead of the current one.
     pub(crate) fn is_keyword_ahead(&self, dist: usize, kws: &[Symbol]) -> bool {
         self.look_ahead(dist, |t| kws.iter().any(|&kw| t.is_keyword(kw)))
@@ -1305,7 +1364,7 @@ impl<'a> Parser<'a> {
         // Avoid const blocks and const closures to be parsed as const items
         if (self.check_const_closure() == is_closure)
             && !self
-                .look_ahead(1, |t| *t == token::OpenDelim(Delimiter::Brace) || t.is_whole_block())
+                .look_ahead(1, |t| *t == token::OpenDelim(Delimiter::Brace) || t.is_metavar_block())
             && self.eat_keyword_case(kw::Const, case)
         {
             Const::Yes(self.prev_token.uninterpolated_span())
@@ -1427,7 +1486,7 @@ impl<'a> Parser<'a> {
             _ => {
                 let prev_spacing = self.token_spacing;
                 self.bump();
-                TokenTree::Token(self.prev_token.clone(), prev_spacing)
+                TokenTree::Token(self.prev_token, prev_spacing)
             }
         }
     }
@@ -1461,7 +1520,11 @@ impl<'a> Parser<'a> {
     /// so emit a proper diagnostic.
     // Public for rustfmt usage.
     pub fn parse_visibility(&mut self, fbt: FollowedByType) -> PResult<'a, Visibility> {
-        maybe_whole!(self, NtVis, |vis| vis.into_inner());
+        if let Some(vis) = self
+            .eat_metavar_seq(MetaVarKind::Vis, |this| this.parse_visibility(FollowedByType::Yes))
+        {
+            return Ok(vis);
+        }
 
         if !self.eat_keyword(kw::Pub) {
             // We need a span for our `Spanned<VisibilityKind>`, but there's inherently no
@@ -1616,7 +1679,7 @@ impl<'a> Parser<'a> {
                 dbg_fmt.field("prev_token", &parser.prev_token);
                 let mut tokens = vec![];
                 for i in 0..*lookahead {
-                    let tok = parser.look_ahead(i, |tok| tok.kind.clone());
+                    let tok = parser.look_ahead(i, |tok| tok.kind);
                     let is_eof = tok == TokenKind::Eof;
                     tokens.push(tok);
                     if is_eof {
@@ -1649,6 +1712,15 @@ impl<'a> Parser<'a> {
 
     pub fn approx_token_stream_pos(&self) -> u32 {
         self.num_bump_calls
+    }
+
+    pub fn uninterpolated_token_span(&self) -> Span {
+        match &self.token.kind {
+            token::OpenDelim(Delimiter::Invisible(InvisibleOrigin::MetaVar(_))) => {
+                self.look_ahead(1, |t| t.span)
+            }
+            _ => self.token.span,
+        }
     }
 }
 
@@ -1699,7 +1771,14 @@ pub enum ParseNtResult {
     Tt(TokenTree),
     Ident(Ident, IdentIsRaw),
     Lifetime(Ident, IdentIsRaw),
-
-    /// This case will eventually be removed, along with `Token::Interpolate`.
-    Nt(Lrc<Nonterminal>),
+    Item(P<ast::Item>),
+    Block(P<ast::Block>),
+    Stmt(P<ast::Stmt>),
+    Pat(P<ast::Pat>, NtPatKind),
+    Expr(P<ast::Expr>, NtExprKind),
+    Literal(P<ast::Expr>),
+    Ty(P<ast::Ty>),
+    Meta(P<ast::AttrItem>),
+    Path(P<ast::Path>),
+    Vis(P<ast::Visibility>),
 }
