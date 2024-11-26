@@ -1023,7 +1023,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
             // Any needed call to `goto_block` will be performed by `emulate_foreign_item`.
             let args = ecx.copy_fn_args(args); // FIXME: Should `InPlace` arguments be reset to uninit?
             let link_name = Symbol::intern(ecx.tcx.symbol_name(instance).name);
-            return ecx.emulate_foreign_item(link_name, abi, &args, dest, ret, unwind);
+            return ecx.emulate_foreign_item(link_name, abi, _fnabi, &args, dest, ret, unwind);
         }
 
         // Otherwise, load the MIR.
