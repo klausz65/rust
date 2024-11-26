@@ -691,6 +691,7 @@ impl<'a> TraitDef<'a> {
         // and similarly for where clauses
         where_clause.predicates.extend(generics.where_clause.predicates.iter().map(|clause| {
             ast::WherePredicate {
+                attrs: clause.attrs.clone(),
                 kind: clause.kind.clone(),
                 id: ast::DUMMY_NODE_ID,
                 span: clause.span.with_ctxt(ctxt),
@@ -748,8 +749,12 @@ impl<'a> TraitDef<'a> {
                         };
 
                         let kind = ast::WherePredicateKind::BoundPredicate(predicate);
-                        let predicate =
-                            ast::WherePredicate { kind, id: ast::DUMMY_NODE_ID, span: self.span };
+                        let predicate = ast::WherePredicate {
+                            attrs: ThinVec::new(),
+                            kind,
+                            id: ast::DUMMY_NODE_ID,
+                            span: self.span,
+                        };
                         where_clause.predicates.push(predicate);
                     }
                 }

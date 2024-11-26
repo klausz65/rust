@@ -396,6 +396,8 @@ declare_features! (
     (unstable, async_for_loop, "1.77.0", Some(118898)),
     /// Allows using C-variadics.
     (unstable, c_variadic, "1.34.0", Some(44930)),
+    /// Allows the use of `#[cfg]` in `where` clauses.
+    (unstable, cfg_attribute_in_where, "CURRENT_RUSTC_VERSION", Some(115590)),
     /// Allows the use of `#[cfg(<true/false>)]`.
     (unstable, cfg_boolean_literals, "1.83.0", Some(131204)),
     /// Allows the use of `#[cfg(overflow_checks)` to check if integer overflow behaviour.

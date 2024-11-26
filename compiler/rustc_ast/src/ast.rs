@@ -429,6 +429,7 @@ impl Default for WhereClause {
 /// A single predicate in a where-clause.
 #[derive(Clone, Encodable, Decodable, Debug)]
 pub struct WherePredicate {
+    pub attrs: AttrVec,
     pub kind: WherePredicateKind,
     pub id: NodeId,
     pub span: Span,
