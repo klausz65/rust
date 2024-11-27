@@ -104,6 +104,10 @@ impl std::fmt::Debug for RegionErrors<'_> {
 
 #[derive(Clone, Debug)]
 pub(crate) enum RegionErrorKind<'tcx> {
+    /// A type test was rewritten into an outlives-static
+    /// constraint from Higher-ranked subtyping.
+    RewrittenTypeTestError { original_test: TypeTest<'tcx> },
+
     /// A generic bound failure for a type test (`T: 'a`).
     TypeTestError { type_test: TypeTest<'tcx> },
 
@@ -223,7 +227,8 @@ impl<'infcx, 'tcx> MirBorrowckCtxt<'_, 'infcx, 'tcx> {
         let mut hrtb_bounds = vec![];
 
         for pred in generics_impl.predicates {
-            let BoundPredicate(WhereBoundPredicate { bound_generic_params, bounds, .. }) = pred.kind
+            let BoundPredicate(WhereBoundPredicate { bound_generic_params, bounds, .. }) =
+                pred.kind
             else {
                 continue;
             };
@@ -237,6 +242,8 @@ impl<'infcx, 'tcx> MirBorrowckCtxt<'_, 'infcx, 'tcx> {
                 }
             }
         }
+
+        debug!(?hrtb_bounds);
 
         hrtb_bounds.iter().for_each(|bound| {
             let Trait(PolyTraitRef { trait_ref, span: trait_span, .. }) = bound else {
@@ -294,6 +301,34 @@ impl<'infcx, 'tcx> MirBorrowckCtxt<'_, 'infcx, 'tcx> {
 
         for (nll_error, _) in nll_errors.into_iter() {
             match nll_error {
+                // A type-test failed and the constraint was rewritten due
+                // to higher-ranked trait bounds.
+                RegionErrorKind::RewrittenTypeTestError { original_test } => {
+                    debug!(?original_test);
+                    // FIXME. We should handle this case better. It
+                    // indicates that we have e.g., some region variable
+                    // whose value is like `'a+'b` where `'a` and `'b` are
+                    // distinct unrelated universal regions that are not
+                    // known to outlive one another. It'd be nice to have
+                    // some examples where this arises to decide how best
+                    // to report it; we could probably handle it by
+                    // iterating over the universal regions and reporting
+                    // an error that multiple bounds are required.
+                    let mut diag = self.dcx().create_err(GenericDoesNotLiveLongEnough {
+                        kind: original_test.generic_kind.to_string(),
+                        span: original_test.span,
+                    });
+
+                    // Add notes and suggestions for the case of 'static lifetime
+                    // implied but not specified when a generic associated types
+                    // are from higher-ranked trait bounds
+                    self.suggest_static_lifetime_for_gat_from_hrtb(
+                        &mut diag,
+                        original_test.lower_bound,
+                    );
+
+                    self.buffer_error(diag);
+                }
                 RegionErrorKind::TypeTestError { type_test } => {
                     // Try to convert the lower-bound region into something named we can print for
                     // the user.
@@ -301,41 +336,17 @@ impl<'infcx, 'tcx> MirBorrowckCtxt<'_, 'infcx, 'tcx> {
 
                     let type_test_span = type_test.span;
 
-                    if let Some(lower_bound_region) = lower_bound_region {
-                        let generic_ty = type_test.generic_kind.to_ty(self.infcx.tcx);
-                        let origin = RelateParamBound(type_test_span, generic_ty, None);
-                        self.buffer_error(self.infcx.err_ctxt().construct_generic_bound_failure(
-                            self.body.source.def_id().expect_local(),
-                            type_test_span,
-                            Some(origin),
-                            type_test.generic_kind,
-                            lower_bound_region,
-                        ));
-                    } else {
-                        // FIXME. We should handle this case better. It
-                        // indicates that we have e.g., some region variable
-                        // whose value is like `'a+'b` where `'a` and `'b` are
-                        // distinct unrelated universal regions that are not
-                        // known to outlive one another. It'd be nice to have
-                        // some examples where this arises to decide how best
-                        // to report it; we could probably handle it by
-                        // iterating over the universal regions and reporting
-                        // an error that multiple bounds are required.
-                        let mut diag = self.dcx().create_err(GenericDoesNotLiveLongEnough {
-                            kind: type_test.generic_kind.to_string(),
-                            span: type_test_span,
-                        });
-
-                        // Add notes and suggestions for the case of 'static lifetime
-                        // implied but not specified when a generic associated types
-                        // are from higher-ranked trait bounds
-                        self.suggest_static_lifetime_for_gat_from_hrtb(
-                            &mut diag,
-                            type_test.lower_bound,
-                        );
-
-                        self.buffer_error(diag);
-                    }
+                    let Some(lower_bound_region) = lower_bound_region else { unreachable!() };
+                    debug!(?lower_bound_region);
+                    let generic_ty = type_test.generic_kind.to_ty(self.infcx.tcx);
+                    let origin = RelateParamBound(type_test_span, generic_ty, None);
+                    self.buffer_error(self.infcx.err_ctxt().construct_generic_bound_failure(
+                        self.body.source.def_id().expect_local(),
+                        type_test_span,
+                        Some(origin),
+                        type_test.generic_kind,
+                        lower_bound_region,
+                    ));
                 }
 
                 RegionErrorKind::UnexpectedHiddenRegion { span, hidden_ty, key, member_region } => {

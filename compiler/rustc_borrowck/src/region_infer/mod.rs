@@ -470,6 +470,9 @@ pub(crate) struct TypeTest<'tcx> {
     /// A test which, if met by the region `'x`, proves that this type
     /// constraint is satisfied.
     pub verify_bound: VerifyBound<'tcx>,
+
+    /// If this type test has been rewritten, the original type test.
+    pub original: Option<Box<Self>>,
 }
 
 impl<'t> TypeTest<'t> {
@@ -552,6 +555,7 @@ impl<'t> TypeTest<'t> {
             Self {
                 lower_bound: universal_regions.fr_static,
                 verify_bound: VerifyBound::OutlivedBy(lower_bound),
+                original: Some(Box::new(self.clone())),
                 ..self
             }
         } else {
@@ -1059,7 +1063,14 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                     erased_generic_kind, type_test.lower_bound, type_test.span,
                 );
 
-                errors_buffer.push(RegionErrorKind::TypeTestError { type_test: type_test.clone() });
+                let error = if let Some(original_test) = type_test.original.as_ref() {
+                    RegionErrorKind::RewrittenTypeTestError {
+                        original_test: *original_test.clone(),
+                    }
+                } else {
+                    RegionErrorKind::TypeTestError { type_test: type_test.clone() }
+                };
+                errors_buffer.push(error);
             }
         }
     }
@@ -1097,7 +1108,8 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     ) -> bool {
         let tcx = infcx.tcx;
 
-        let TypeTest { generic_kind, lower_bound, span: _, verify_bound: _ } = type_test;
+        let TypeTest { generic_kind, lower_bound, span: _, verify_bound: _, original: _ } =
+            type_test;
 
         let generic_ty = generic_kind.to_ty(tcx);
         let Some(subject) = self.try_promote_type_test_subject(infcx, generic_ty) else {
