@@ -24,6 +24,7 @@ use rustc_session::config::InliningThreshold;
 use rustc_span::def_id::{CrateNum, DefId};
 use rustc_span::{Span, SpanData, Symbol};
 
+
 use crate::concurrency::cpu_affinity::{self, CpuAffinityMask};
 use crate::concurrency::data_race::{self, NaReadType, NaWriteType};
 use crate::concurrency::weak_memory;
@@ -1006,8 +1007,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
     fn find_mir_or_eval_fn(
         ecx: &mut MiriInterpCx<'tcx>,
         instance: ty::Instance<'tcx>,
-        abi: ExternAbi,
-        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[FnArg<'tcx, Provenance>],
         dest: &MPlaceTy<'tcx>,
         ret: Option<mir::BasicBlock>,
@@ -1023,7 +1023,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
             // Any needed call to `goto_block` will be performed by `emulate_foreign_item`.
             let args = ecx.copy_fn_args(args); // FIXME: Should `InPlace` arguments be reset to uninit?
             let link_name = Symbol::intern(ecx.tcx.symbol_name(instance).name);
-            return ecx.emulate_foreign_item(link_name, abi, _fnabi, &args, dest, ret, unwind);
+            return ecx.emulate_foreign_item(link_name, abi, &args, dest, ret, unwind);
         }
 
         // Otherwise, load the MIR.
@@ -1034,7 +1034,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
     fn call_extra_fn(
         ecx: &mut MiriInterpCx<'tcx>,
         fn_val: DynSym,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[FnArg<'tcx, Provenance>],
         dest: &MPlaceTy<'tcx>,
         ret: Option<mir::BasicBlock>,

@@ -88,8 +88,7 @@ impl<'tcx> interpret::Machine<'tcx> for DummyMachine {
     fn find_mir_or_eval_fn(
         _ecx: &mut InterpCx<'tcx, Self>,
         _instance: ty::Instance<'tcx>,
-        _abi: rustc_abi::ExternAbi,
-        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
+        _abi: &FnAbi<'tcx, Ty<'tcx>>,
         _args: &[interpret::FnArg<'tcx, Self::Provenance>],
         _destination: &interpret::MPlaceTy<'tcx, Self::Provenance>,
         _target: Option<BasicBlock>,

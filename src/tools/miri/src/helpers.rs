@@ -936,11 +936,11 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             }
         };
         if call_conv != exp_abi {
-                        throw_ub_format!(
-                               "calling a function with ABI {} using caller ABI {}",
-                                exp_abi.name(),
-                                call_conv.name()
-                            )
+            throw_ub_format!(
+                   "calling a function with ABI {} using caller ABI {}",
+                    exp_abi.name(),
+                    call_conv.name()
+                )
         }
         interp_ok(())
     }
@@ -970,11 +970,11 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
     fn check_abi_and_shim_symbol_clash(
         &mut self,
-        fnabi: &FnAbi<'tcx, Ty<'tcx>>,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         exp_abi: ExternAbi,
         link_name: Symbol,
     ) -> InterpResult<'tcx, ()> {
-        self.check_abi(fnabi, exp_abi)?;
+        self.check_abi(abi, exp_abi)?;
         if let Some((body, instance)) = self.eval_context_mut().lookup_exported_symbol(link_name)? {
             // If compiler-builtins is providing the symbol, then don't treat it as a clash.
             // We'll use our built-in implementation in `emulate_foreign_item_inner` for increased
@@ -995,8 +995,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
     fn check_shim<'a, const N: usize>(
         &mut self,
-        abi: ExternAbi,
-        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         exp_abi: ExternAbi,
         link_name: Symbol,
         args: &'a [OpTy<'tcx>],
@@ -1004,7 +1003,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     where
         &'a [OpTy<'tcx>; N]: TryFrom<&'a [OpTy<'tcx>]>,
     {
-        self.check_abi_and_shim_symbol_clash(_fnabi, exp_abi, link_name)?;
+        self.check_abi_and_shim_symbol_clash(abi, exp_abi, link_name)?;
         check_arg_count(args)
     }
 

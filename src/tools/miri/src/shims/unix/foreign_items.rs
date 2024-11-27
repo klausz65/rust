@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 use std::str;
 
-use rustc_abi::{ExternAbi, Size};
+use rustc_abi::{ ExternAbi, Size};
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_span::Symbol;
 
@@ -14,6 +14,8 @@ use crate::concurrency::cpu_affinity::CpuAffinityMask;
 use crate::shims::alloc::EvalContextExt as _;
 use crate::shims::unix::*;
 use crate::*;
+use rustc_target::callconv::FnAbi;
+use rustc_middle::ty::Ty;
 
 pub fn is_dyn_sym(name: &str, target_os: &str) -> bool {
     match name {
@@ -42,7 +44,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     fn emulate_foreign_item_inner(
         &mut self,
         link_name: Symbol,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {

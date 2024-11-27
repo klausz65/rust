@@ -1,5 +1,8 @@
 use rustc_abi::ExternAbi;
 use rustc_span::Symbol;
+use rustc_target::callconv::FnAbi;
+use rustc_middle::ty::Ty;
+
 
 use self::shims::unix::linux::eventfd::EvalContextExt as _;
 use crate::helpers::check_min_arg_count;
@@ -9,7 +12,7 @@ use crate::*;
 pub fn syscall<'tcx>(
     this: &mut MiriInterpCx<'tcx>,
     link_name: Symbol,
-    abi: ExternAbi,
+    abi: &FnAbi<'tcx, Ty<'tcx>>,
     args: &[OpTy<'tcx>],
     dest: &MPlaceTy<'tcx>,
 ) -> InterpResult<'tcx> {
