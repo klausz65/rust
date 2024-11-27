@@ -44,23 +44,6 @@ function showMain() {
 window.rootPath = getVar("root-path");
 window.currentCrate = getVar("current-crate");
 
-function setMobileTopbar() {
-    // FIXME: It would be nicer to generate this text content directly in HTML,
-    // but with the current code it's hard to get the right information in the right place.
-    const mobileTopbar = document.querySelector(".mobile-topbar");
-    const locationTitle = document.querySelector(".sidebar h2.location");
-    if (mobileTopbar) {
-        const mobileTitle = document.createElement("h2");
-        mobileTitle.className = "location";
-        if (hasClass(document.querySelector(".rustdoc"), "crate")) {
-            mobileTitle.innerHTML = `Crate <a href="#">${window.currentCrate}</a>`;
-        } else if (locationTitle) {
-            mobileTitle.innerHTML = locationTitle.innerHTML;
-        }
-        mobileTopbar.appendChild(mobileTitle);
-    }
-}
-
 // Gets the human-readable string for the virtual-key code of the
 // given KeyboardEvent, ev.
 //
@@ -84,18 +67,8 @@ function getVirtualKey(ev) {
 }
 
 const MAIN_ID = "main-content";
-const SETTINGS_BUTTON_ID = "settings-menu";
 const ALTERNATIVE_DISPLAY_ID = "alternative-display";
 const NOT_DISPLAYED_ID = "not-displayed";
-const HELP_BUTTON_ID = "help-button";
-
-function getSettingsButton() {
-    return document.getElementById(SETTINGS_BUTTON_ID);
-}
-
-function getHelpButton() {
-    return document.getElementById(HELP_BUTTON_ID);
-}
 
 // Returns the current URL without any query parameter or hash.
 function getNakedUrl() {
@@ -210,13 +183,13 @@ function preLoadCss(cssUrl) {
         document.head.append(script);
     }
 
-    if (getSettingsButton()) {
-        getSettingsButton().onclick = event => {
+    onEachLazy(document.querySelectorAll(".settings-menu"), settingsMenu => {
+        settingsMenu.onclick = event => {
             if (event.ctrlKey || event.altKey || event.metaKey) {
                 return;
             }
             window.hideAllModals(false);
-            addClass(getSettingsButton(), "rotate");
+            addClass(settingsMenu, "rotate");
             event.preventDefault();
             // Sending request for the CSS and the JS files at the same time so it will
             // hopefully be loaded when the JS will generate the settings content.
@@ -236,7 +209,7 @@ function preLoadCss(cssUrl) {
                 }
             }, 0);
         };
-    }
+    });
 
     window.searchState = {
         rustdocToolbar: document.querySelector("rustdoc-toolbar"),
@@ -340,6 +313,10 @@ function preLoadCss(cssUrl) {
                 searchState.getQueryStringParams().search === undefined) {
                 history.pushState(null, "", btn.href);
             }
+            const btnLabel = document.querySelector("#search-button a span.label");
+            if (btnLabel) {
+                btnLabel.innerHTML = "Exit";
+            }
         },
         removeQueryParameters: () => {
             // We change the document title.
@@ -352,6 +329,10 @@ function preLoadCss(cssUrl) {
             switchDisplayedElement(null);
             // We also remove the query parameter from the URL.
             searchState.removeQueryParameters();
+            const btnLabel = document.querySelector("#search-button a span.label");
+            if (btnLabel) {
+                btnLabel.innerHTML = "Search";
+            }
         },
         getQueryStringParams: () => {
             const params = {};
@@ -1408,11 +1389,13 @@ function preLoadCss(cssUrl) {
     }
 
     function helpBlurHandler(event) {
-        if (!getHelpButton().contains(document.activeElement) &&
-            !getHelpButton().contains(event.relatedTarget) &&
-            !getSettingsButton().contains(document.activeElement) &&
-            !getSettingsButton().contains(event.relatedTarget)
-        ) {
+        const isInPopover = onEachLazy(
+            document.querySelectorAll(".settings-menu, .help-menu"),
+            menu => {
+                return menu.contains(document.activeElement) || menu.contains(event.relatedTarget);
+            },
+        );
+        if (!isInPopover) {
             window.hidePopoverMenus();
         }
     }
@@ -1471,10 +1454,9 @@ href="https://doc.rust-lang.org/${channel}/rustdoc/read-documentation/search.htm
 
         const container = document.createElement("div");
         if (!isHelpPage) {
-            container.className = "popover";
+            container.className = "popover content";
         }
         container.id = "help";
-        container.style.display = "none";
 
         const side_by_side = document.createElement("div");
         side_by_side.className = "side-by-side";
@@ -1489,14 +1471,16 @@ href="https://doc.rust-lang.org/${channel}/rustdoc/read-documentation/search.htm
             const help_section = document.createElement("section");
             help_section.appendChild(container);
             document.getElementById("main-content").appendChild(help_section);
-            container.style.display = "block";
         } else {
-            const help_button = getHelpButton();
-            help_button.appendChild(container);
-
-            container.onblur = helpBlurHandler;
-            help_button.onblur = helpBlurHandler;
-            help_button.children[0].onblur = helpBlurHandler;
+            onEachLazy(document.querySelectorAll(".help-menu"), menu => {
+                if (menu.offsetWidth !== 0) {
+                    menu.appendChild(container);
+                    container.onblur = helpBlurHandler;
+                    menu.onblur = helpBlurHandler;
+                    menu.children[0].onblur = helpBlurHandler;
+                    return true;
+                }
+            });
         }
 
         return container;
@@ -1517,73 +1501,53 @@ href="https://doc.rust-lang.org/${channel}/rustdoc/read-documentation/search.htm
      * Hide all the popover menus.
      */
     window.hidePopoverMenus = () => {
-        onEachLazy(document.querySelectorAll("rustdoc-toolbar .popover"), elem => {
+        onEachLazy(document.querySelectorAll(".settings-menu .popover"), elem => {
             elem.style.display = "none";
         });
-        const button = getHelpButton();
-        if (button) {
-            removeClass(button, "help-open");
-        }
+        onEachLazy(document.querySelectorAll(".help-menu .popover"), elem => {
+            elem.parentElement.removeChild(elem);
+        });
     };
-
-    /**
-     * Returns the help menu element (not the button).
-     *
-     * @param {boolean} buildNeeded - If this argument is `false`, the help menu element won't be
-     *                                built if it doesn't exist.
-     *
-     * @return {HTMLElement}
-     */
-    function getHelpMenu(buildNeeded) {
-        let menu = getHelpButton().querySelector(".popover");
-        if (!menu && buildNeeded) {
-            menu = buildHelpMenu();
-        }
-        return menu;
-    }
 
     /**
      * Show the help popup menu.
      */
     function showHelp() {
+        window.hideAllModals();
         // Prevent `blur` events from being dispatched as a result of closing
         // other modals.
-        const button = getHelpButton();
-        addClass(button, "help-open");
-        button.querySelector("a").focus();
-        const menu = getHelpMenu(true);
-        if (menu.style.display === "none") {
-            window.hideAllModals();
-            menu.style.display = "";
-        }
+        onEachLazy(document.querySelectorAll(".help-menu a"), menu => {
+            if (menu.offsetWidth !== 0) {
+                menu.focus();
+                return true;
+            }
+        });
+        buildHelpMenu();
     }
 
-    const helpLink = document.querySelector(`#${HELP_BUTTON_ID} > a`);
     if (isHelpPage) {
         buildHelpMenu();
-    } else if (helpLink) {
-        helpLink.addEventListener("click", event => {
-            // By default, have help button open docs in a popover.
-            // If user clicks with a moderator, though, use default browser behavior,
-            // probably opening in a new window or tab.
-            if (!helpLink.contains(helpLink) ||
-                event.ctrlKey ||
-                event.altKey ||
-                event.metaKey) {
-                return;
-            }
-            event.preventDefault();
-            const menu = getHelpMenu(true);
-            const shouldShowHelp = menu.style.display === "none";
-            if (shouldShowHelp) {
-                showHelp();
-            } else {
-                window.hidePopoverMenus();
-            }
+    } else {
+        onEachLazy(document.querySelectorAll(`.help-menu > a`), helpLink => {
+            helpLink.addEventListener("click", event => {
+                // By default, have help button open docs in a popover.
+                // If user clicks with a moderator, though, use default browser behavior,
+                // probably opening in a new window or tab.
+                if (event.ctrlKey ||
+                    event.altKey ||
+                    event.metaKey) {
+                    return;
+                }
+                event.preventDefault();
+                if (document.getElementById("help")) {
+                    window.hidePopoverMenus();
+                } else {
+                    showHelp();
+                }
+            })
         });
     }
 
-    setMobileTopbar();
     addSidebarItems();
     addSidebarCrates();
     onHashChange(null);

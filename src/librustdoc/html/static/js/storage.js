@@ -268,13 +268,41 @@ class RustdocToolbarElement extends HTMLElement {
         <div id="search-button" tabindex="-1">
             <a href="${currentUrl}?search="><span class="label">Search</span></a>
         </div>
-        <div id="settings-menu" tabindex="-1">
+        <div class="settings-menu" tabindex="-1">
             <a href="${rootPath}settings.html"><span class="label">Settings</span></a>
         </div>
-        <div id="help-button" tabindex="-1">
+        <div class="help-menu" tabindex="-1">
             <a href="${rootPath}help.html"><span class="label">Help</span></a>
         </div>
         <button id="toggle-all-docs"><span class="label">Summary</span></button>`;
     }
 }
 window.customElements.define("rustdoc-toolbar", RustdocToolbarElement);
+class RustdocTopBarElement extends HTMLElement {
+    constructor() {
+        super();
+    }
+    connectedCallback() {
+        const rootPath = getVar("root-path");
+        const tmplt = document.createElement("template");
+        tmplt.innerHTML = `
+        <slot name="sidebar-menu-toggle"></slot>
+        <slot></slot>
+        <slot name="settings-menu"></slot>
+        <slot name="help-menu"></slot>
+        `;
+        const shadow = this.attachShadow({ mode: "open" });
+        shadow.appendChild(tmplt.content.cloneNode(true));
+        this.innerHTML += `
+        <button class="sidebar-menu-toggle" slot="sidebar-menu-toggle" title="show sidebar">
+        </button>
+        <div class="settings-menu" slot="settings-menu" tabindex="-1">
+            <a href="${rootPath}settings.html"><span class="label">Settings</span></a>
+        </div>
+        <div class="help-menu" slot="help-menu" tabindex="-1">
+            <a href="${rootPath}help.html"><span class="label">Help</span></a>
+        </div>
+        `;
+    }
+}
+window.customElements.define("rustdoc-topbar", RustdocTopBarElement);
