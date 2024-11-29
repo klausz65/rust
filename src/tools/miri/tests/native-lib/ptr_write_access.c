@@ -23,6 +23,22 @@ EXPORT void init_array(int *array, size_t len, int val) {
   }
 }
 
+/* Test: test_init_static_inner */
+
+typedef struct SyncPtr {
+    int *ptr;
+} SyncPtr;
+
+EXPORT void init_static_inner(const SyncPtr *s_ptr, int val) {
+  *(s_ptr->ptr) = val;
+}
+
+/* Tests: test_exposed, test_pass_dangling */
+
+EXPORT void ignore_ptr(__attribute__((unused)) const int *ptr) {
+  return;
+}
+
 /* Test: test_expose_int */
 EXPORT void expose_int(const int *int_ptr, const int **pptr) {
   *pptr = int_ptr;
@@ -49,26 +65,10 @@ EXPORT void swap_ptr_tuple(Tuple *t_ptr) {
   t_ptr->ptr1 = tmp;
 }
 
-/* Test: test_init_static_inner */
-
-typedef struct SyncPtr {
-    int *ptr;
-} SyncPtr;
-
-EXPORT void init_static_inner(const SyncPtr *s_ptr, int val) {
-  *(s_ptr->ptr) = val;
-}
-
 /* Test: test_overwrite_dangling */
 
 EXPORT void overwrite_ptr(const int **pptr) {
   *pptr = NULL;
-}
-
-/* Test: test_pass_dangling */
-
-EXPORT void ignore_ptr(__attribute__((unused)) const int *ptr) {
-  return;
 }
 
 /* Test: test_swap_ptr_triple_dangling */

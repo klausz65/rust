@@ -3,8 +3,11 @@ use std::ops::Deref;
 
 use libffi::high::call as ffi;
 use libffi::low::CodePtr;
-use rustc_abi::{BackendRepr, HasDataLayout};
-use rustc_middle::ty::{self as ty, IntTy, UintTy};
+use rustc_abi::{BackendRepr, HasDataLayout, Size};
+use rustc_middle::{
+    mir::interpret::Pointer,
+    ty::{self as ty, IntTy, UintTy},
+};
 use rustc_span::Symbol;
 
 use crate::*;
@@ -74,6 +77,11 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
             ty::Tuple(t_list) if t_list.len() == 0 => {
                 unsafe { ffi::call::<()>(ptr, libffi_args.as_slice()) };
                 return interp_ok(ImmTy::uninit(dest.layout));
+            }
+            ty::RawPtr(..) => {
+                let x = unsafe { ffi::call::<*const ()>(ptr, libffi_args.as_slice()) };
+                let ptr = Pointer::new(Provenance::Wildcard, Size::from_bytes(x.addr()));
+                Scalar::from_pointer(ptr, this)
             }
             _ => throw_unsup_format!("unsupported return type for native call: {:?}", link_name),
         };

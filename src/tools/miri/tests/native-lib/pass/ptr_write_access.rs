@@ -21,6 +21,7 @@ fn main() {
     test_overwrite_dangling();
     test_pass_dangling();
     test_swap_ptr_triple_dangling();
+    test_return_ptr();
 }
 
 /// Test function that modifies an int.
@@ -207,7 +208,6 @@ fn test_swap_ptr_triple_dangling() {
 }
 
 
-/* TODO: Fix "unsupported return type"
 /// Test function that directly returns its pointer argument.
 fn test_return_ptr() {
     extern "C" {
@@ -220,4 +220,3 @@ fn test_return_ptr() {
     let ptr = unsafe { return_ptr(ptr) };
     assert_eq!(unsafe { *ptr }, x);
 }
-*/
