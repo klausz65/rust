@@ -1,6 +1,8 @@
 // Only works on Unix targets
 //@ignore-target: windows wasm
 //@only-on-host
+//@compile-flags: -Zmiri-permissive-provenance
+
 
 #![feature(box_as_ptr)]
 
@@ -9,27 +11,19 @@ use std::ptr::null;
 
 fn main() {
     test_increment_int();
-
     test_init_int();
-
     test_init_array();
-
     test_init_static_inner();
-
+    test_exposed();
     test_expose_int();
-
     test_swap_ptr();
-
-    test_swap_nested_ptr();
-
-    test_swap_tuple();
-
+    test_swap_ptr_tuple();
     test_overwrite_dangling();
-
-    test_expose_triple();
+    test_pass_dangling();
+    test_swap_ptr_triple_dangling();
 }
 
-// Test function that modifies an int.
+/// Test function that modifies an int.
 fn test_increment_int() {
     extern "C" {
         fn increment_int(ptr: *mut i32);
@@ -41,7 +35,7 @@ fn test_increment_int() {
     assert_eq!(x, 12);
 }
 
-// Test function that initializes an int.
+/// Test function that initializes an int.
 fn test_init_int() {
     extern "C" {
         fn init_int(ptr: *mut i32, val: i32);
@@ -57,7 +51,7 @@ fn test_init_int() {
     assert_eq!(x, val);
 }
 
-// Test function that initializes an array.
+/// Test function that initializes an array.
 fn test_init_array() {
     extern "C" {
         fn init_array(ptr: *mut i32, len: usize, val: i32);
@@ -74,7 +68,7 @@ fn test_init_array() {
     assert_eq!(array, [val; LEN]);
 }
 
-// Test function that initializes an int pointed to by an immutable static.
+/// Test function that initializes an int pointed to by an immutable static.
 fn test_init_static_inner() {
     #[repr(C)]
     struct SyncPtr {
@@ -98,48 +92,48 @@ fn test_init_static_inner() {
     assert_eq!(inner, val);
 }
 
-// Test function that writes a pointer and exposes the alloc of its int argument.
+// Test function that marks an allocation as exposed.
+fn test_exposed() {
+    extern "C" {
+        fn ignore_ptr(ptr: *const i32);
+    }
+
+    let x = 51;
+    let ptr = &raw const x;
+    let p = ptr.addr();
+
+    unsafe { ignore_ptr(ptr) };
+    assert_eq!(unsafe { *(p as *const i32) }, x);
+}
+
+/// Test function that writes a pointer and exposes the alloc of its int argument.
 fn test_expose_int() {
     extern "C" {
         fn expose_int(int_ptr: *const i32, pptr: *mut *const i32);
     }
 
-    let x = 51;
+    let x = 61;
     let mut ptr = std::ptr::null();
 
     unsafe { expose_int(&x, &mut ptr) };
     assert_eq!(unsafe { *ptr }, x);
 }
 
-// Test function that swaps two pointers and exposes the alloc of an int.
+/// Test function that swaps two pointers and exposes the alloc of an int.
 fn test_swap_ptr() {
     extern "C" {
         fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
     }
 
-    let x = 61;
+    let x = 71;
     let (mut ptr0, mut ptr1) = (&raw const x, null());
 
     unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
     assert_eq!(unsafe { *ptr1 }, x);
 }
 
-// Test function that swaps two nested pointers and exposes the alloc of an int.
-fn test_swap_nested_ptr() {
-    extern "C" {
-        fn swap_nested_ptr(ppptr0: *mut *mut *const i32, ppptr1: *mut *mut *const i32);
-    }
-
-    let x = 71;
-    let (mut ptr0, mut ptr1) = (&raw const x, null());
-    let (mut pptr0, mut pptr1) = (&raw mut ptr0, &raw mut ptr1);
-
-    unsafe { swap_nested_ptr(&mut pptr0, &mut pptr1) }
-    assert_eq!(unsafe { *ptr1 }, x);
-}
-
-// Test function that swaps two pointers in a struct and exposes the alloc of an int.
-fn test_swap_tuple() {
+/// Test function that swaps two pointers in a struct and exposes the alloc of an int.
+fn test_swap_ptr_tuple() {
     #[repr(C)]
     struct Tuple {
         ptr0: *const i32,
@@ -147,17 +141,17 @@ fn test_swap_tuple() {
     }
 
     extern "C" {
-        fn swap_tuple(t_ptr: *mut Tuple);
+        fn swap_ptr_tuple(t_ptr: *mut Tuple);
     }
 
     let x = 81;
     let mut tuple = Tuple { ptr0: &raw const x, ptr1: null() };
 
-    unsafe { swap_tuple(&mut tuple) }
+    unsafe { swap_ptr_tuple(&mut tuple) }
     assert_eq!(unsafe { *tuple.ptr1 }, x);
 }
 
-// Test function that interacts with a dangling pointer.
+/// Test function that interacts with a dangling pointer.
 fn test_overwrite_dangling() {
     extern "C" {
         fn overwrite_ptr(pptr: *mut *const i32);
@@ -166,13 +160,26 @@ fn test_overwrite_dangling() {
     let b = Box::new(91);
     let mut ptr = Box::as_ptr(&b);
     drop(b);
-    unsafe { overwrite_ptr(&mut ptr) };
 
+    unsafe { overwrite_ptr(&mut ptr) };
     assert_eq!(ptr, null());
 }
 
-// Test function that interacts with a struct storing a dangling pointer.
-fn test_expose_triple() {
+/// Test function that passes a dangling pointer.
+fn test_pass_dangling() {
+    extern "C" {
+        fn ignore_ptr(ptr: *const i32);
+    }
+
+    let b = Box::new(101);
+    let ptr = Box::as_ptr(&b);
+    drop(b);
+
+    unsafe { ignore_ptr(ptr) };
+}
+
+/// Test function that interacts with a struct storing a dangling pointer.
+fn test_swap_ptr_triple_dangling() {
     #[repr(C)]
     struct Triple {
         ptr0: *const i32,
@@ -181,16 +188,36 @@ fn test_expose_triple() {
     }
 
     extern "C" {
-        fn expose_triple(t_ptr: *const Triple);
+        fn swap_ptr_triple_dangling(t_ptr: *const Triple);
     }
 
-    let x = 101;
-    let y = 111;
+    let x = 111;
     let b = Box::new(121);
     let ptr = Box::as_ptr(&b);
     drop(b);
-    let triple = Triple { ptr0: &raw const x, ptr1: ptr, ptr2: &raw const y };
+    let z = 131;
+    let triple = Triple {
+        ptr0: &raw const x,
+        ptr1: ptr,
+        ptr2: &raw const z
+    };
 
-    unsafe { expose_triple(&triple) }
-    assert_eq!(unsafe { *triple.ptr2 }, y);
+    unsafe { swap_ptr_triple_dangling(&triple) }
+    assert_eq!(unsafe { *triple.ptr2 }, x);
 }
+
+
+/* TODO: Fix "unsupported return type"
+/// Test function that directly returns its pointer argument.
+fn test_return_ptr() {
+    extern "C" {
+        fn return_ptr(ptr: *const i32) -> *const i32;
+    }
+
+    let x = 141;
+    let ptr = &raw const x;
+
+    let ptr = unsafe { return_ptr(ptr) };
+    assert_eq!(unsafe { *ptr }, x);
+}
+*/

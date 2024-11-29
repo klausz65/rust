@@ -4,15 +4,12 @@
 
 fn main() {
     test_access_pointer();
-
     test_access_simple();
-
     test_access_nested();
-
     test_access_static();
 }
 
-// Test function that dereferences an int pointer and prints its contents from C.
+/// Test function that dereferences an int pointer and prints its contents from C.
 fn test_access_pointer() {
     extern "C" {
         fn print_pointer(ptr: *const i32);
@@ -23,7 +20,7 @@ fn test_access_pointer() {
     unsafe { print_pointer(&x) };
 }
 
-// Test function that dereferences a simple struct pointer and accesses a field.
+/// Test function that dereferences a simple struct pointer and accesses a field.
 fn test_access_simple() {
     #[repr(C)]
     struct Simple {
@@ -39,7 +36,7 @@ fn test_access_simple() {
     assert_eq!(unsafe { access_simple(&simple) }, -42);
 }
 
-// Test function that dereferences nested struct pointers and accesses fields.
+/// Test function that dereferences nested struct pointers and accesses fields.
 fn test_access_nested() {
     use std::ptr::NonNull;
 
@@ -61,7 +58,7 @@ fn test_access_nested() {
     assert_eq!(unsafe { access_nested(&nested_2) }, 97);
 }
 
-// Test function that dereferences a static struct pointer and accesses fields.
+/// Test function that dereferences a static struct pointer and accesses fields.
 fn test_access_static() {
     #[repr(C)]
     struct Static {

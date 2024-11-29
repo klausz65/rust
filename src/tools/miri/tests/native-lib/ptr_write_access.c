@@ -36,22 +36,14 @@ EXPORT void swap_ptr(const int **pptr0, const int **pptr1) {
   *pptr1 = tmp;
 }
 
-/* Test: test_swap_nested_ptr */
-
-EXPORT void swap_nested_ptr(const int ***ppptr0, const int ***ppptr1) {
-  const int *tmp = **ppptr0;
-  **ppptr0 = **ppptr1;
-  **ppptr1 = tmp;
-}
-
-/* Test: test_swap_tuple */
+/* Test: test_swap_ptr_tuple */
 
 typedef struct Tuple {
     int *ptr0;
     int *ptr1;
 } Tuple;
 
-EXPORT void swap_tuple(Tuple *t_ptr) {
+EXPORT void swap_ptr_tuple(Tuple *t_ptr) {
   int *tmp = t_ptr->ptr0;
   t_ptr->ptr0 = t_ptr->ptr1;
   t_ptr->ptr1 = tmp;
@@ -73,7 +65,13 @@ EXPORT void overwrite_ptr(const int **pptr) {
   *pptr = NULL;
 }
 
-/* Test: test_expose_triple */
+/* Test: test_pass_dangling */
+
+EXPORT void ignore_ptr(__attribute__((unused)) const int *ptr) {
+  return;
+}
+
+/* Test: test_swap_ptr_triple_dangling */
 
 typedef struct Triple {
     int *ptr0;
@@ -81,6 +79,12 @@ typedef struct Triple {
     int *ptr2;
 } Triple;
 
-EXPORT void expose_triple(__attribute__((unused)) const Triple *_t_ptr) {
-  return;
+EXPORT void swap_ptr_triple_dangling(Triple *t_ptr) {
+  int *tmp = t_ptr->ptr0;
+  t_ptr->ptr0 = t_ptr->ptr2;
+  t_ptr->ptr2 = tmp;
+}
+
+EXPORT const int *return_ptr(const int *ptr) {
+  return ptr;
 }
