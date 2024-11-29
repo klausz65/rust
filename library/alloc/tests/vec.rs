@@ -2312,6 +2312,63 @@ fn test_vec_macro_repeat() {
 }
 
 #[test]
+fn test_vec_macro_repeat_const() {
+    #[derive(Eq, PartialEq, Debug)]
+    struct Item {
+        x: u64,
+        y: u32, // Paddings are added to test the uninitialized bytes case.
+    }
+
+    impl Clone for Item {
+        fn clone(&self) -> Self {
+            panic!("no clone should be called");
+        }
+    }
+
+    const ITEM: Item = Item { x: 2, y: 3 };
+
+    assert_eq!(vec![const { ITEM }; 0], vec![ITEM; 0]);
+    assert_eq!(vec![const { ITEM }; 1], vec![ITEM]);
+    assert_eq!(vec![const { ITEM }; 2], vec![ITEM, ITEM]);
+    assert_eq!(vec![const { ITEM }; 3], vec![ITEM, ITEM, ITEM]);
+}
+
+#[test]
+fn test_vec_macro_repeat_const_drop_behavior() {
+    thread_local! { static DROP_COUNT: Cell<usize> = const { Cell::new(0) } };
+
+    fn with_drop_count_scope(count: usize, f: impl FnOnce()) {
+        struct RestoreOldDropCount(usize);
+
+        impl Drop for RestoreOldDropCount {
+            fn drop(&mut self) {
+                DROP_COUNT.set(self.0);
+            }
+        }
+
+        let _restore_old_drop_count = RestoreOldDropCount(DROP_COUNT.replace(count));
+
+        f();
+    }
+
+    struct DropCounter;
+
+    impl Drop for DropCounter {
+        fn drop(&mut self) {
+            DROP_COUNT.set(DROP_COUNT.get().checked_add(1).unwrap());
+        }
+    }
+
+    for n in 0..10 {
+        with_drop_count_scope(0, || {
+            _ = vec![const { DropCounter }; n];
+
+            assert_eq!(DROP_COUNT.get(), n);
+        });
+    }
+}
+
+#[test]
 fn test_vec_swap() {
     let mut a: Vec<isize> = vec![0, 1, 2, 3, 4, 5, 6];
     a.swap(2, 4);
