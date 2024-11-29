@@ -327,7 +327,7 @@ pub trait Machine<'tcx>: Sized {
         addr: u64,
     ) -> InterpResult<'tcx, Pointer<Option<Self::Provenance>>>;
 
-    /// Marks a pointer as exposed, allowing it's provenance
+    /// Marks a pointer as exposed, allowing its provenance
     /// to be recovered. "Pointer-to-int cast"
     fn expose_provenance(
         ecx: &InterpCx<'tcx, Self>,

@@ -944,6 +944,10 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         interp_ok(())
     }
 
+    /// Handle the effect an FFI call might have on the state of allocations.
+    /// This overapproximates the modifications which external code might make to memory:
+    /// We set all reachable allocations as initialized, mark all provenances as exposed
+    /// and overwrite them with `Provenance::WILDCARD`.
     pub fn prepare_for_native_call(
         &mut self,
         id: AllocId,

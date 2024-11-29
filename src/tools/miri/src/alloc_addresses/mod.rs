@@ -300,6 +300,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         }
         trace!("Exposing allocation id {alloc_id:?}");
         global_state.exposed.insert(alloc_id);
+        drop(global_state);
         if this.machine.borrow_tracker.is_some() {
             this.expose_tag(alloc_id, tag)?;
         }
