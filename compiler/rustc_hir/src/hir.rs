@@ -4,7 +4,7 @@ use rustc_abi::ExternAbi;
 use rustc_ast::util::parser::{AssocOp, PREC_CLOSURE, PREC_JUMP, PREC_PREFIX, PREC_UNAMBIGUOUS};
 use rustc_ast::{
     self as ast, Attribute, FloatTy, InlineAsmOptions, InlineAsmTemplatePiece, IntTy, Label,
-    LitKind, TraitObjectSyntax, UintTy,
+    LitIntType, LitKind, TraitObjectSyntax, UintTy,
 };
 pub use rustc_ast::{
     BinOp, BinOpKind, BindingMode, BorrowKind, BoundConstness, BoundPolarity, ByRef, CaptureBy,
@@ -1824,6 +1824,18 @@ impl Expr<'_> {
             | ExprKind::DropTemps(..)
             | ExprKind::Err(_) => false,
         }
+    }
+
+    /// Check if expression is an integer literal that can be used
+    /// where `usize` is expected.
+    pub fn is_size_lit(&self) -> bool {
+        matches!(
+            self.kind,
+            ExprKind::Lit(Lit {
+                node: LitKind::Int(_, LitIntType::Unsuffixed | LitIntType::Unsigned(UintTy::Usize)),
+                ..
+            })
+        )
     }
 
     /// If `Self.kind` is `ExprKind::DropTemps(expr)`, drill down until we get a non-`DropTemps`
