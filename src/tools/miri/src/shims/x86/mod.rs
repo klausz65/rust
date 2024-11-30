@@ -6,6 +6,7 @@ use rustc_middle::ty::Ty;
 use rustc_middle::ty::layout::LayoutOf as _;
 use rustc_middle::{mir, ty};
 use rustc_span::Symbol;
+use rustc_target::callconv::FnAbi;
 
 use self::helpers::bool_to_simd_element;
 use crate::*;
@@ -28,7 +29,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     fn emulate_x86_intrinsic(
         &mut self,
         link_name: Symbol,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {
@@ -69,7 +70,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 if is_u64 && this.tcx.sess.target.arch != "x86_64" {
                     return interp_ok(EmulateItemResult::NotSupported);
                 }
-
+                // TODO: How do we handle ExternAbi::Unadjusted??
                 let [c_in, a, b, out] =
                     this.check_shim(abi, ExternAbi::Unadjusted, link_name, args)?;
                 let out = this.deref_pointer_as(

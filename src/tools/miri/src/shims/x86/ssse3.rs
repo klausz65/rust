@@ -1,6 +1,8 @@
 use rustc_abi::ExternAbi;
 use rustc_middle::mir;
 use rustc_span::Symbol;
+use rustc_target::callconv::FnAbi;
+use rustc_middle::ty::Ty;
 
 use super::{horizontal_bin_op, int_abs, pmulhrsw, psign};
 use crate::*;
@@ -10,7 +12,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     fn emulate_x86_ssse3_intrinsic(
         &mut self,
         link_name: Symbol,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {

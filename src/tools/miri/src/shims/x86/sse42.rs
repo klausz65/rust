@@ -3,6 +3,7 @@ use rustc_middle::mir;
 use rustc_middle::ty::Ty;
 use rustc_middle::ty::layout::LayoutOf as _;
 use rustc_span::Symbol;
+use rustc_target::callconv::FnAbi;
 
 use crate::*;
 
@@ -200,7 +201,7 @@ fn deconstruct_args<'tcx>(
     unprefixed_name: &str,
     this: &mut MiriInterpCx<'tcx>,
     link_name: Symbol,
-    abi: ExternAbi,
+    abi: &FnAbi<'tcx, Ty<'tcx>>,
     args: &[OpTy<'tcx>],
 ) -> InterpResult<'tcx, (OpTy<'tcx>, OpTy<'tcx>, Option<(u64, u64)>, u8)> {
     let array_layout_fn = |this: &mut MiriInterpCx<'tcx>, imm: u8| {
@@ -279,7 +280,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     fn emulate_x86_sse42_intrinsic(
         &mut self,
         link_name: Symbol,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {

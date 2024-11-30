@@ -221,7 +221,6 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
         &mut self,
         link_name: Symbol,
         abi: &FnAbi<'tcx, Ty<'tcx>>,
-        _fnabi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {
@@ -238,7 +237,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 return interp_ok(EmulateItemResult::NeedsReturn);
             }
         }
-
+        // TODO: update the comment here
         // When adding a new shim, you should follow the following pattern:
         // ```
         // "shim_name" => {
