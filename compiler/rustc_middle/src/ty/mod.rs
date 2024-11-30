@@ -26,6 +26,8 @@ pub use generics::*;
 // Can't use a glob import here as it would cause
 // ambiguity when importing the actual types implementing
 // the inherent traits from this module.
+// FIXME(clippy#13764): remove this `allow`.
+#[allow(clippy::useless_attribute)]
 #[allow(rustc::non_glob_import_of_type_ir_inherent)]
 use inherent::SliceLike;
 pub use intrinsic::IntrinsicDef;
