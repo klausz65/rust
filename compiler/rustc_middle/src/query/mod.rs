@@ -6,6 +6,7 @@
 
 #![allow(unused_parens)]
 
+use std::ffi::OsStr;
 use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -130,9 +131,7 @@ rustc_queries! {
     /// NOTE: This currently does not work with dependency info in the
     /// analysis, codegen and linking passes, place extra code at the top of
     /// `rustc_interface::passes::write_dep_info` to make that work.
-    ///
-    /// Will emit an error and return `None` if the variable is not UTF-8.
-    query env_var(key: Symbol) -> Option<Symbol> {
+    query env_var_os(key: &'tcx OsStr) -> Option<&'tcx OsStr> {
         // Environment variables are global state
         eval_always
         desc { "get the value of an environment variable" }
