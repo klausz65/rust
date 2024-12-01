@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::intrinsics::transmute_unchecked;
 use std::mem::MaybeUninit;
 
@@ -63,6 +64,10 @@ impl<T> EraseType for &'_ T {
 
 impl<T> EraseType for &'_ [T] {
     type Result = [u8; size_of::<&'static [()]>()];
+}
+
+impl EraseType for &'_ OsStr {
+    type Result = [u8; size_of::<&'static OsStr>()];
 }
 
 impl<T> EraseType for &'_ ty::List<T> {
@@ -178,6 +183,10 @@ impl<T> EraseType for Option<&'_ T> {
 
 impl<T> EraseType for Option<&'_ [T]> {
     type Result = [u8; size_of::<Option<&'static [()]>>()];
+}
+
+impl EraseType for Option<&'_ OsStr> {
+    type Result = [u8; size_of::<Option<&'static OsStr>>()];
 }
 
 impl EraseType for Option<mir::DestructuredConstant<'_>> {
