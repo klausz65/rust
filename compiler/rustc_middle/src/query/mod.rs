@@ -121,6 +121,23 @@ rustc_queries! {
         desc { "perform lints prior to macro expansion" }
     }
 
+    /// Tracked access to environment variables.
+    ///
+    /// Useful for the implementation of `std::env!`, `proc-macro`s change
+    /// detection and other changes in the compiler's behaviour that is easier
+    /// to control with an environment variable than a flag.
+    ///
+    /// NOTE: This currently does not work with dependency info in the
+    /// analysis, codegen and linking passes, place extra code at the top of
+    /// `rustc_interface::passes::write_dep_info` to make that work.
+    ///
+    /// Will emit an error and return `None` if the variable is not UTF-8.
+    query env_var(key: Symbol) -> Option<Symbol> {
+        // Environment variables are global state
+        eval_always
+        desc { "get the value of an environment variable" }
+    }
+
     query resolutions(_: ()) -> &'tcx ty::ResolverGlobalCtxt {
         no_hash
         desc { "getting the resolver outputs" }
