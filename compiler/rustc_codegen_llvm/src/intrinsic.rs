@@ -340,6 +340,33 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     self.const_i32(cache_type),
                 ])
             }
+            sym::carrying_mul_add => {
+                let uty = fn_args.type_at(0);
+                let (size, signed) = uty.int_size_and_signed(self.tcx);
+                assert!(!signed);
+
+                let wide_llty = self.type_ix(size.bits() * 2);
+                let a = self.zext(args[0].immediate(), wide_llty);
+                let b = self.zext(args[1].immediate(), wide_llty);
+                let c = self.zext(args[2].immediate(), wide_llty);
+                let d = self.zext(args[3].immediate(), wide_llty);
+
+                let wide = self.unchecked_umul(a, b);
+                let wide = self.unchecked_uadd(wide, c);
+                let wide = self.unchecked_uadd(wide, d);
+
+                let narrow_llty = self.type_ix(size.bits());
+                let low = self.trunc(wide, narrow_llty);
+                let bits_const = self.const_uint(wide_llty, size.bits());
+                let high = self.lshr(wide, bits_const);
+                let high = self.trunc(high, narrow_llty);
+
+                let pair_llty = self.type_struct(&[narrow_llty, narrow_llty], false);
+                let pair = self.const_poison(pair_llty);
+                let pair = self.insert_value(pair, low, 0);
+                let pair = self.insert_value(pair, high, 1);
+                pair
+            }
             sym::ctlz
             | sym::ctlz_nonzero
             | sym::cttz

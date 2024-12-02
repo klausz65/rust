@@ -125,3 +125,39 @@ fn test_three_way_compare_in_const_contexts() {
     assert_eq!(SIGNED_EQUAL, Equal);
     assert_eq!(SIGNED_GREATER, Greater);
 }
+
+#[test]
+fn carrying_mul_add_fallback_u32() {
+    use core::intrinsics::fallback::carrying_mul_add;
+    let r = carrying_mul_add::<u32>(0x9e37_79b9, 0x7f4a_7c15, 0xf39c_c060, 0x5ced_c834);
+    assert_eq!(r, (0x2087_20c1, 0x4eab_8e1d));
+    let r = carrying_mul_add::<u32>(0x1082_276b, 0xf3a2_7251, 0xf86c_6a11, 0xd0c1_8e95);
+    assert_eq!(r, (0x7aa0_1781, 0x0fb6_0528));
+}
+
+#[test]
+fn carrying_mul_add_fallback_u128() {
+    use core::intrinsics::fallback::carrying_mul_add;
+
+    assert_eq!(carrying_mul_add::<u128>(1, 1, 1, 1), (3, 0));
+    assert_eq!(carrying_mul_add::<u128>(0, 0, u128::MAX, u128::MAX), (u128::MAX - 1, 1));
+    assert_eq!(
+        (const { carrying_mul_add::<u128>(u128::MAX, u128::MAX, u128::MAX, u128::MAX) }),
+        (u128::MAX, u128::MAX),
+    );
+
+    let r = carrying_mul_add::<u128>(
+        0x243f6a8885a308d313198a2e03707344,
+        0xa4093822299f31d0082efa98ec4e6c89,
+        0x452821e638d01377be5466cf34e90c6c,
+        0xc0ac29b7c97c50dd3f84d5b5b5470917,
+    );
+    assert_eq!(r, (0x8050ec20ed554e40338d277e00b674e7, 0x1739ee6cea07da409182d003859b59d8));
+    let r = carrying_mul_add::<u128>(
+        0x9216d5d98979fb1bd1310ba698dfb5ac,
+        0x2ffd72dbd01adfb7b8e1afed6a267e96,
+        0xba7c9045f12c7f9924a19947b3916cf7,
+        0x0801f2e2858efc16636920d871574e69,
+    );
+    assert_eq!(r, (0x185525545fdb2fefb502a3a602efd628, 0x1b62d35fe3bff6b566f99667ef7ebfd6));
+}

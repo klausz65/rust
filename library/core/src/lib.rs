@@ -113,6 +113,7 @@
 #![feature(const_align_of_val_raw)]
 #![feature(const_alloc_layout)]
 #![feature(const_black_box)]
+#![feature(const_carrying_mul_add)]
 #![feature(const_eq_ignore_ascii_case)]
 #![feature(const_eval_select)]
 #![feature(const_heap)]
