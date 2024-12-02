@@ -3,6 +3,8 @@ Short version for non-lawyers:
 The Rust Project is dual-licensed under Apache 2.0 and MIT
 terms.
 
+It is Copyright (c) The Rust Project Contributors.
+
 Longer version:
 
 Copyrights in the Rust project are retained by their contributors. No
@@ -13,8 +15,8 @@ For full authorship information, see the version control history or
 <https://thanks.rust-lang.org>
 
 Except as otherwise noted, Rust is licensed under the Apache License, Version
-2.0 <LICENSES/Apache-2.0.txt> or <http://www.apache.org/licenses/LICENSE-2.0> or the MIT
-license <LICENSES/MIT.txt> or <http://opensource.org/licenses/MIT>, at your option.
+2.0 <LICENSE-APACHE> or <http://www.apache.org/licenses/LICENSE-2.0> or the MIT
+license <LICENSE-MIT> or <http://opensource.org/licenses/MIT>, at your option.
 
 We track licenses for third-party materials in two ways:
 
