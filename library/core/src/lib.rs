@@ -109,6 +109,7 @@
 // tidy-alphabetical-start
 #![feature(array_ptr_get)]
 #![feature(asm_experimental_arch)]
+#![feature(closure_track_caller)]
 #![feature(const_eval_select)]
 #![feature(const_typed_swap)]
 #![feature(core_intrinsics)]
@@ -242,6 +243,10 @@ pub mod autodiff {
     #[unstable(feature = "autodiff", issue = "124509")]
     pub use crate::macros::builtin::autodiff;
 }
+
+#[cfg(not(bootstrap))]
+#[unstable(feature = "rustc_contracts", issue = "none")]
+pub mod contracts;
 
 #[unstable(feature = "cfg_match", issue = "115585")]
 pub use crate::macros::cfg_match;
