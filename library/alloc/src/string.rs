@@ -3149,7 +3149,7 @@ impl fmt::Write for String {
     }
 }
 
-/// An iterator over the `[char]`s of a string.
+/// An iterator over the [`char`]s of a string.
 ///
 /// This struct is created by the [`into_chars`] method on [`String`].
 /// See its documentation for more.
@@ -3172,9 +3172,6 @@ impl fmt::Debug for IntoChars {
 
 impl IntoChars {
     /// Views the underlying data as a subslice of the original data.
-    ///
-    /// This has the same lifetime as the original slice, and so the
-    /// iterator can continue to be used while this exists.
     ///
     /// # Examples
     ///
