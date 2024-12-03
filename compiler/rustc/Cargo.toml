@@ -21,7 +21,8 @@ stable_mir = { path = "../stable_mir" }
 # tidy-alphabetical-end
 
 [dependencies.tikv-jemalloc-sys]
-version = "0.6.0"
+git = "https://github.com/lqd/jemallocator.git"
+rev = "e0edb93a9e51235ec06b6de22b959af4a5c15052"
 optional = true
 features = ['unprefixed_malloc_on_supported_platforms']
 
