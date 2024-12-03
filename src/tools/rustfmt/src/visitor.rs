@@ -386,7 +386,7 @@ impl<'b, 'a: 'b> FmtVisitor<'a> {
         let indent = self.block_indent;
         let block;
         let rewrite = match fk {
-            visit::FnKind::Fn(_, ident, _, _, _, Some(ref b)) => {
+            visit::FnKind::Fn(_, ident, _, _, _, _, Some(ref b)) => {
                 block = b;
                 self.rewrite_fn_before_block(
                     indent,
@@ -538,6 +538,7 @@ impl<'b, 'a: 'b> FmtVisitor<'a> {
                         defaultness,
                         ref sig,
                         ref generics,
+			ref contract,
                         ref body,
                     } = **fn_kind;
                     if body.is_some() {
@@ -547,7 +548,7 @@ impl<'b, 'a: 'b> FmtVisitor<'a> {
                             _ => visit::FnCtxt::Foreign,
                         };
                         self.visit_fn(
-                            visit::FnKind::Fn(fn_ctxt, &item.ident, sig, &item.vis, generics, body),
+                            visit::FnKind::Fn(fn_ctxt, &item.ident, sig, &item.vis, generics, contract, body),
                             &sig.decl,
                             item.span,
                             defaultness,
@@ -639,13 +640,14 @@ impl<'b, 'a: 'b> FmtVisitor<'a> {
                     defaultness,
                     ref sig,
                     ref generics,
+		    ref contract,
                     ref body,
                 } = **fn_kind;
                 if body.is_some() {
                     let inner_attrs = inner_attributes(&ai.attrs);
                     let fn_ctxt = visit::FnCtxt::Assoc(assoc_ctxt);
                     self.visit_fn(
-                        visit::FnKind::Fn(fn_ctxt, &ai.ident, sig, &ai.vis, generics, body),
+                        visit::FnKind::Fn(fn_ctxt, &ai.ident, sig, &ai.vis, generics, contract, body),
                         &sig.decl,
                         ai.span,
                         defaultness,

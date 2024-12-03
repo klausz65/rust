@@ -342,6 +342,7 @@ impl EarlyLintPass for UnsafeCode {
             ast::FnSig { header: ast::FnHeader { safety: ast::Safety::Unsafe(_), .. }, .. },
             _,
             _,
+            _,
             body,
         ) = fk
         {
