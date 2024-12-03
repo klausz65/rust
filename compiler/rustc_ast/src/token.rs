@@ -1161,7 +1161,7 @@ impl Nonterminal {
             NtPat(pat) => pat.span,
             NtExpr(expr) | NtLiteral(expr) => expr.span,
             NtTy(ty) => ty.span,
-            NtMeta(attr_item) => attr_item.span(),
+            NtMeta(attr_item) => attr_item.span,
             NtPath(path) => path.span,
             NtVis(vis) => vis.span,
         }
