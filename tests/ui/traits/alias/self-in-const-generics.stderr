@@ -1,4 +1,4 @@
-error[E0038]: the trait alias `BB` cannot be made into an object
+error[E0038]: the trait alias `BB` is not dyn compatible
   --> $DIR/self-in-const-generics.rs:9:16
    |
 LL | fn foo(x: &dyn BB) {}

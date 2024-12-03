@@ -44,17 +44,18 @@ LL | trait Foo<const N: Bar<2>> {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: see https://rustc-dev-guide.rust-lang.org/overview.html#queries and https://rustc-dev-guide.rust-lang.org/query.html for more information
 
-error[E0038]: the trait `Foo` cannot be made into an object
+error[E0038]: the trait `Foo` is not dyn compatible
   --> $DIR/ice-hir-wf-check-anon-const-issue-122989.rs:2:24
    |
 LL | trait Foo<const N: Bar<2>> {
-   |                        ^ `Foo` cannot be made into an object
+   |                        ^ `Foo` is not dyn compatible
    |
-note: for a trait to be "dyn-compatible" it needs to allow building a vtable to allow the call to be resolvable dynamically; for more information visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
+note: for a trait to be dyn compatible it needs to allow building a vtable
+      for more information, visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
   --> $DIR/ice-hir-wf-check-anon-const-issue-122989.rs:8:8
    |
 LL | trait Foo<const N: Bar<2>> {
-   |       --- this trait cannot be made into an object...
+   |       --- this trait is not dyn compatible...
 ...
 LL |     fn func() {}
    |        ^^^^ ...because associated function `func` has no `self` parameter
@@ -75,17 +76,18 @@ LL | trait Foo<const N: Bar<2>> {
    |
    = note: the only supported types are integers, `bool`, and `char`
 
-error[E0038]: the trait `Foo` cannot be made into an object
+error[E0038]: the trait `Foo` is not dyn compatible
   --> $DIR/ice-hir-wf-check-anon-const-issue-122989.rs:11:11
    |
 LL | trait Bar<const M: Foo<2>> {}
-   |           ^^^^^^^^^^^^^^^ `Foo` cannot be made into an object
+   |           ^^^^^^^^^^^^^^^ `Foo` is not dyn compatible
    |
-note: for a trait to be "dyn-compatible" it needs to allow building a vtable to allow the call to be resolvable dynamically; for more information visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
+note: for a trait to be dyn compatible it needs to allow building a vtable
+      for more information, visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
   --> $DIR/ice-hir-wf-check-anon-const-issue-122989.rs:8:8
    |
 LL | trait Foo<const N: Bar<2>> {
-   |       --- this trait cannot be made into an object...
+   |       --- this trait is not dyn compatible...
 ...
 LL |     fn func() {}
    |        ^^^^ ...because associated function `func` has no `self` parameter
