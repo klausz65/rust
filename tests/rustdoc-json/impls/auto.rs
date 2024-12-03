@@ -4,8 +4,8 @@
 #[lang = "sized"]
 trait Sized {}
 
-#[lang = "legacy_receiver"]
-pub trait LegacyReceiver {}
+// These lines are here to ensure line numbers don't change in this
+// temporary PR.
 
 pub auto trait Bar {}
 

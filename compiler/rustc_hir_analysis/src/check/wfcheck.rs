@@ -30,7 +30,6 @@ use rustc_trait_selection::traits::misc::{
     ConstParamTyImplementationError, type_allowed_to_implement_const_param_ty,
 };
 use rustc_trait_selection::traits::outlives_bounds::InferCtxtExt as _;
-use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
 use rustc_trait_selection::traits::{
     self, FulfillmentError, Obligation, ObligationCause, ObligationCauseCode, ObligationCtxt,
     WellFormedLoc,
@@ -1629,13 +1628,6 @@ fn check_fn_or_method<'tcx>(
     }
 }
 
-/// The `arbitrary_self_types_pointers` feature implies `arbitrary_self_types`.
-#[derive(Clone, Copy, PartialEq)]
-enum ArbitrarySelfTypesLevel {
-    Basic,        // just arbitrary_self_types
-    WithPointers, // both arbitrary_self_types and arbitrary_self_types_pointers
-}
-
 #[instrument(level = "debug", skip(wfcx))]
 fn check_method_receiver<'tcx>(
     wfcx: &WfCheckingCtxt<'_, 'tcx>,
@@ -1668,55 +1660,31 @@ fn check_method_receiver<'tcx>(
         return Ok(());
     }
 
-    let arbitrary_self_types_level = if tcx.features().arbitrary_self_types_pointers() {
-        Some(ArbitrarySelfTypesLevel::WithPointers)
-    } else if tcx.features().arbitrary_self_types() {
-        Some(ArbitrarySelfTypesLevel::Basic)
-    } else {
-        None
-    };
     let generics = tcx.generics_of(method.def_id);
 
-    let receiver_validity =
-        receiver_is_valid(wfcx, span, receiver_ty, self_ty, arbitrary_self_types_level, generics);
+    // yet to do: determine whether self_ty is Sized. If not (most commonly
+    // if it's a trait) determine whether receiver_ty::Target is Sized.
+    // If so, arrange to emit the extra help in _HELP_FOR_SIZED_SELF_TYPE.
+    // Then adjust tests/ui/self/arbitrary_self_types_sizedness_trait.rs
+    // to match.
+    // yet to do: determine whether self_ty is NonNull or Weak, and use
+    // _HELP_FOR_NONNULL and _HELP_FOR_WEAK as appropriate. No tests yet
+    // exist for this.
+    let raw_pointer = is_raw_pointer(receiver_ty);
+
+    let arbitrary_self_types_pointers_enabled = tcx.features().arbitrary_self_types_pointers();
+    let receiver_validity = receiver_is_valid(
+        wfcx,
+        span,
+        receiver_ty,
+        self_ty,
+        arbitrary_self_types_pointers_enabled,
+        generics,
+    );
     if let Err(receiver_validity_err) = receiver_validity {
-        return Err(match arbitrary_self_types_level {
-            // Wherever possible, emit a message advising folks that the features
-            // `arbitrary_self_types` or `arbitrary_self_types_pointers` might
-            // have helped.
-            None if receiver_is_valid(
-                wfcx,
-                span,
-                receiver_ty,
-                self_ty,
-                Some(ArbitrarySelfTypesLevel::Basic),
-                generics,
-            )
-            .is_ok() =>
-            {
-                // Report error; would have worked with `arbitrary_self_types`.
-                feature_err(
-                    &tcx.sess,
-                    sym::arbitrary_self_types,
-                    span,
-                    format!(
-                        "`{receiver_ty}` cannot be used as the type of `self` without \
-                            the `arbitrary_self_types` feature",
-                    ),
-                )
-                .with_help(fluent::hir_analysis_invalid_receiver_ty_help)
-                .emit()
-            }
-            None | Some(ArbitrarySelfTypesLevel::Basic)
-                if receiver_is_valid(
-                    wfcx,
-                    span,
-                    receiver_ty,
-                    self_ty,
-                    Some(ArbitrarySelfTypesLevel::WithPointers),
-                    generics,
-                )
-                .is_ok() =>
+        return Err(
+            if !arbitrary_self_types_pointers_enabled
+                && receiver_is_valid(wfcx, span, receiver_ty, self_ty, true, generics).is_ok()
             {
                 // Report error; would have worked with `arbitrary_self_types_pointers`.
                 feature_err(
@@ -1725,25 +1693,23 @@ fn check_method_receiver<'tcx>(
                     span,
                     format!(
                         "`{receiver_ty}` cannot be used as the type of `self` without \
-                            the `arbitrary_self_types_pointers` feature",
+                                the `arbitrary_self_types_pointers` feature",
                     ),
                 )
                 .with_help(fluent::hir_analysis_invalid_receiver_ty_help)
                 .emit()
-            }
-            _ =>
-            // Report error; would not have worked with `arbitrary_self_types[_pointers]`.
-            {
+            } else {
+                // Report error; would not have worked with `arbitrary_self_types[_pointers]`.
                 match receiver_validity_err {
-                    ReceiverValidityError::DoesNotDeref => {
-                        tcx.dcx().emit_err(errors::InvalidReceiverTy { span, receiver_ty })
-                    }
+                    ReceiverValidityError::DoesNotDeref => tcx
+                        .dcx()
+                        .emit_err(errors::InvalidReceiverTy { span, receiver_ty, raw_pointer }),
                     ReceiverValidityError::MethodGenericParamUsed => {
                         tcx.dcx().emit_err(errors::InvalidGenericReceiverTy { span, receiver_ty })
                     }
                 }
-            }
-        });
+            },
+        );
     }
     Ok(())
 }
@@ -1773,6 +1739,10 @@ fn confirm_type_is_not_a_method_generic_param(
     Ok(())
 }
 
+fn is_raw_pointer<'tcx>(ty: Ty<'tcx>) -> bool {
+    matches!(ty.kind(), ty::RawPtr(..))
+}
+
 /// Returns whether `receiver_ty` would be considered a valid receiver type for `self_ty`. If
 /// `arbitrary_self_types` is enabled, `receiver_ty` must transitively deref to `self_ty`, possibly
 /// through a `*const/mut T` raw pointer if  `arbitrary_self_types_pointers` is also enabled.
@@ -1787,11 +1757,10 @@ fn receiver_is_valid<'tcx>(
     span: Span,
     receiver_ty: Ty<'tcx>,
     self_ty: Ty<'tcx>,
-    arbitrary_self_types_enabled: Option<ArbitrarySelfTypesLevel>,
+    arbitrary_self_types_pointers_enabled: bool,
     method_generics: &ty::Generics,
 ) -> Result<(), ReceiverValidityError> {
     let infcx = wfcx.infcx;
-    let tcx = wfcx.tcx();
     let cause =
         ObligationCause::new(span, wfcx.body_def_id, traits::ObligationCauseCode::MethodReceiver);
 
@@ -1806,14 +1775,13 @@ fn receiver_is_valid<'tcx>(
 
     confirm_type_is_not_a_method_generic_param(receiver_ty, method_generics)?;
 
-    let mut autoderef = Autoderef::new(infcx, wfcx.param_env, wfcx.body_def_id, span, receiver_ty);
+    let mut autoderef = Autoderef::new(infcx, wfcx.param_env, wfcx.body_def_id, span, receiver_ty)
+        .use_receiver_trait();
 
     // The `arbitrary_self_types_pointers` feature allows raw pointer receivers like `self: *const Self`.
-    if arbitrary_self_types_enabled == Some(ArbitrarySelfTypesLevel::WithPointers) {
+    if arbitrary_self_types_pointers_enabled {
         autoderef = autoderef.include_raw_pointers();
     }
-
-    let receiver_trait_def_id = tcx.require_lang_item(LangItem::LegacyReceiver, Some(span));
 
     // Keep dereferencing `receiver_ty` until we get to `self_ty`.
     while let Some((potential_self_ty, _)) = autoderef.next() {
@@ -1834,54 +1802,10 @@ fn receiver_is_valid<'tcx>(
             wfcx.register_obligations(autoderef.into_obligations());
             return Ok(());
         }
-
-        // Without `feature(arbitrary_self_types)`, we require that each step in the
-        // deref chain implement `receiver`.
-        if arbitrary_self_types_enabled.is_none() {
-            if !receiver_is_implemented(
-                wfcx,
-                receiver_trait_def_id,
-                cause.clone(),
-                potential_self_ty,
-            ) {
-                // We cannot proceed.
-                break;
-            }
-
-            // Register the bound, in case it has any region side-effects.
-            wfcx.register_bound(
-                cause.clone(),
-                wfcx.param_env,
-                potential_self_ty,
-                receiver_trait_def_id,
-            );
-        }
     }
 
     debug!("receiver_is_valid: type `{:?}` does not deref to `{:?}`", receiver_ty, self_ty);
     Err(ReceiverValidityError::DoesNotDeref)
-}
-
-fn receiver_is_implemented<'tcx>(
-    wfcx: &WfCheckingCtxt<'_, 'tcx>,
-    receiver_trait_def_id: DefId,
-    cause: ObligationCause<'tcx>,
-    receiver_ty: Ty<'tcx>,
-) -> bool {
-    let tcx = wfcx.tcx();
-    let trait_ref = ty::TraitRef::new(tcx, receiver_trait_def_id, [receiver_ty]);
-
-    let obligation = Obligation::new(tcx, cause, wfcx.param_env, trait_ref);
-
-    if wfcx.infcx.predicate_must_hold_modulo_regions(&obligation) {
-        true
-    } else {
-        debug!(
-            "receiver_is_implemented: type `{:?}` does not implement `Receiver` trait",
-            receiver_ty
-        );
-        false
-    }
 }
 
 fn check_variances_for_type_defn<'tcx>(
