@@ -19,6 +19,10 @@ use rustc_middle::ty::layout::{FnAbiOf, LayoutOf, MaybeResult, TyAndLayout};
 use rustc_middle::ty::{self, FloatTy, IntTy, Ty, TyCtxt, UintTy};
 use rustc_session::config::CrateType;
 use rustc_span::{Span, Symbol};
+use rustc_target::callconv::FnAbi;
+use rustc_target::callconv::Conv;
+
+
 
 use crate::*;
 
@@ -915,12 +919,39 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     }
 
     /// Check that the ABI is what we expect.
-    fn check_abi<'a>(&self, abi: ExternAbi, exp_abi: ExternAbi) -> InterpResult<'a, ()> {
-        if abi != exp_abi {
+    fn check_abi<'a>(&self, fn_abi: &FnAbi<'tcx, Ty<'tcx>>, exp_abi: Conv) -> InterpResult<'a, ()> {
+        let caller_abi_name;
+        let callee_abi_name;
+        match fn_abi.conv {
+            Conv::C => {
+                caller_abi_name = "C";
+            },
+            Conv::Rust => {
+                caller_abi_name = "Rust";
+            },
+            _=> {
+                // TODO: What is a better way of doing this?
+                panic!("Unsupported caller ABI");
+            }
+        };
+        match exp_abi {
+            Conv::C => {
+                callee_abi_name = "C";
+            },
+            Conv::Rust => {
+                callee_abi_name = "Rust";
+            },
+            _=> {
+                // TODO: What is a better way of doing this?
+                panic!("Unsupported callee ABI");
+            }
+        }
+
+        if fn_abi.conv != exp_abi {
             throw_ub_format!(
                 "calling a function with ABI {} using caller ABI {}",
-                exp_abi.name(),
-                abi.name()
+                callee_abi_name,
+                caller_abi_name
             )
         }
         interp_ok(())
@@ -951,8 +982,8 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
     fn check_abi_and_shim_symbol_clash(
         &mut self,
-        abi: ExternAbi,
-        exp_abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
+        exp_abi: Conv,
         link_name: Symbol,
     ) -> InterpResult<'tcx, ()> {
         self.check_abi(abi, exp_abi)?;
@@ -976,8 +1007,8 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
     fn check_shim<'a, const N: usize>(
         &mut self,
-        abi: ExternAbi,
-        exp_abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
+        exp_abi: Conv,
         link_name: Symbol,
         args: &'a [OpTy<'tcx>],
     ) -> InterpResult<'tcx, &'a [OpTy<'tcx>; N]>

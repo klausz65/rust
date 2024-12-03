@@ -4,6 +4,8 @@ use std::{io, iter, str};
 
 use rustc_abi::{Align, ExternAbi, Size};
 use rustc_span::Symbol;
+use rustc_target::callconv::FnAbi;
+use rustc_middle::ty::Ty;
 
 use self::shims::windows::handle::{Handle, PseudoHandle};
 use crate::shims::os_str::bytes_to_os_str;
@@ -83,7 +85,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
     fn emulate_foreign_item_inner(
         &mut self,
         link_name: Symbol,
-        abi: ExternAbi,
+        abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OpTy<'tcx>],
         dest: &MPlaceTy<'tcx>,
     ) -> InterpResult<'tcx, EmulateItemResult> {
