@@ -5252,8 +5252,8 @@ version = "0.1.0"
 
 [[package]]
 name = "tikv-jemalloc-sys"
-version = "0.6.0+5.3.0-3-ge4817c8d89a2a413e835c4adeab5c5c4412f9235"
-source = "git+https://github.com/lqd/jemallocator.git?rev=5f2553834644f9e6ff9f35a8e4af93bcffa758a7#5f2553834644f9e6ff9f35a8e4af93bcffa758a7"
+version = "0.6.0+5.3.0-4-g6cc42173cbb2dad6ef5c7e49e6666987ce4cf92c"
+source = "git+https://github.com/lqd/jemallocator.git?rev=6c33d5b33e547ad10c8561147e854d28f0bd7173#6c33d5b33e547ad10c8561147e854d28f0bd7173"
 dependencies = [
  "cc",
  "libc",
