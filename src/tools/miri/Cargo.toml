@@ -33,7 +33,7 @@ directories = "5"
 # easily use that since we support of-tree builds.
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies.tikv-jemalloc-sys]
 git = "https://github.com/lqd/jemallocator.git"
-rev = "e0edb93a9e51235ec06b6de22b959af4a5c15052"
+rev = "3f2513eb619d9d81528b9c05d3cb29888b7509ac"
 features = ['unprefixed_malloc_on_supported_platforms']
 
 [target.'cfg(unix)'.dependencies]
