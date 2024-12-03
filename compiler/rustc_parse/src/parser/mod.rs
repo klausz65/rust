@@ -144,7 +144,7 @@ pub struct Parser<'a> {
     pub prev_token: Token,
     pub capture_cfg: bool,
     restrictions: Restrictions,
-    expected_tokens: Vec<TokenType>,
+    expected_token_types: Vec<TokenType>,
     token_cursor: TokenCursor,
     // The number of calls to `bump`, i.e. the position in the token stream.
     num_bump_calls: u32,
@@ -465,7 +465,7 @@ impl<'a> Parser<'a> {
             prev_token: Token::dummy(),
             capture_cfg: false,
             restrictions: Restrictions::empty(),
-            expected_tokens: Vec::new(),
+            expected_token_types: Vec::new(),
             token_cursor: TokenCursor { tree_cursor: stream.into_trees(), stack: Vec::new() },
             num_bump_calls: 0,
             break_last_token: 0,
@@ -529,7 +529,7 @@ impl<'a> Parser<'a> {
 
     /// Expects and consumes the token `t`. Signals an error if the next token is not `t`.
     pub fn expect(&mut self, t: &TokenKind) -> PResult<'a, Recovered> {
-        if self.expected_tokens.is_empty() {
+        if self.expected_token_types.is_empty() {
             if self.token == *t {
                 self.bump();
                 Ok(Recovered::No)
@@ -594,13 +594,13 @@ impl<'a> Parser<'a> {
 
     /// Checks if the next token is `tok`, and returns `true` if so.
     ///
-    /// This method will automatically add `tok` to `expected_tokens` if `tok` is not
+    /// This method will automatically add `tok` to `expected_token_types` if `tok` is not
     /// encountered.
     #[inline]
     fn check(&mut self, tok: &TokenKind) -> bool {
         let is_present = self.token == *tok;
         if !is_present {
-            self.expected_tokens.push(TokenType::Token(tok.clone()));
+            self.expected_token_types.push(TokenType::Token(tok.clone()));
         }
         is_present
     }
@@ -641,7 +641,7 @@ impl<'a> Parser<'a> {
     #[inline]
     #[must_use]
     fn check_keyword(&mut self, kw: Symbol) -> bool {
-        self.expected_tokens.push(TokenType::Keyword(kw));
+        self.expected_token_types.push(TokenType::Keyword(kw));
         self.token.is_keyword(kw)
     }
 
@@ -730,7 +730,7 @@ impl<'a> Parser<'a> {
         if ok {
             true
         } else {
-            self.expected_tokens.push(typ);
+            self.expected_token_types.push(typ);
             false
         }
     }
@@ -807,7 +807,7 @@ impl<'a> Parser<'a> {
                 true
             }
             _ => {
-                self.expected_tokens.push(TokenType::Token(expected));
+                self.expected_token_types.push(TokenType::Token(expected));
                 false
             }
         }
@@ -1155,7 +1155,7 @@ impl<'a> Parser<'a> {
         self.token_spacing = next_spacing;
 
         // Diagnostics.
-        self.expected_tokens.clear();
+        self.expected_token_types.clear();
     }
 
     /// Advance the parser by one token.
@@ -1643,8 +1643,8 @@ impl<'a> Parser<'a> {
         DebugParser { parser: self, lookahead }
     }
 
-    pub fn clear_expected_tokens(&mut self) {
-        self.expected_tokens.clear();
+    pub fn clear_expected_token_types(&mut self) {
+        self.expected_token_types.clear();
     }
 
     pub fn approx_token_stream_pos(&self) -> u32 {
