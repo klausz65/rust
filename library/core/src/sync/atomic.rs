@@ -1203,6 +1203,66 @@ impl AtomicBool {
         }
         Err(prev)
     }
+
+    /// Fetches the value, applies a function to it that it return a new value.
+    /// The new value is stored and the old value is returned.
+    ///
+    /// Note: This may call the function multiple times if the value has been changed from other threads in
+    /// the meantime, but the function will have been applied only once to the stored value.
+    ///
+    /// `fetch_update_infallible` takes two [`Ordering`] arguments to describe the memory
+    /// ordering of this operation. The first describes the required ordering for
+    /// when the operation finally succeeds while the second describes the
+    /// required ordering for loads. These correspond to the success and failure
+    /// orderings of [`AtomicBool::compare_exchange`] respectively.
+    ///
+    /// Using [`Acquire`] as success ordering makes the store part
+    /// of this operation [`Relaxed`], and using [`Release`] makes the final successful load
+    /// [`Relaxed`]. The (failed) load ordering can only be [`SeqCst`], [`Acquire`] or [`Relaxed`].
+    ///
+    /// **Note:** This method is only available on platforms that support atomic operations on `u8`.
+    ///
+    /// # Considerations
+    ///
+    /// This method is not magic;  it is not provided by the hardware.
+    /// It is implemented in terms of [`AtomicBool::compare_exchange_weak`], and suffers from the same drawbacks.
+    /// In particular, this method will not circumvent the [ABA Problem].
+    ///
+    /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(fetch_update_infallible)]
+    ///
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// let x = AtomicBool::new(false);
+    /// assert_eq!(x.fetch_update_infallible(Ordering::SeqCst, Ordering::SeqCst, |x| !x), false);
+    /// assert_eq!(x.fetch_update_infallible(Ordering::SeqCst, Ordering::SeqCst, |x| !x), true);
+    /// assert_eq!(x.load(Ordering::SeqCst), false);
+    /// ```
+    #[inline]
+    #[unstable(feature = "fetch_update_infallible", issue = "none")]
+    #[cfg(target_has_atomic = "8")]
+    #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+    pub fn fetch_update_infallible<F>(
+        &self,
+        set_order: Ordering,
+        fetch_order: Ordering,
+        mut f: F,
+    ) -> bool
+    where
+        F: FnMut(bool) -> bool,
+    {
+        let mut prev = self.load(fetch_order);
+        loop {
+            match self.compare_exchange_weak(prev, f(prev), set_order, fetch_order) {
+                Ok(x) => break x,
+                Err(next_prev) => prev = next_prev,
+            }
+        }
+    }
 }
 
 #[cfg(target_has_atomic_load_store = "ptr")]
@@ -1731,6 +1791,70 @@ impl<T> AtomicPtr<T> {
             }
         }
         Err(prev)
+    }
+
+    /// Fetches the value, applies a function to it that it return a new value.
+    /// The new value is stored and the old value is returned.
+    ///
+    /// Note: This may call the function multiple times if the value has been changed from other threads in
+    /// the meantime, but the function will have been applied only once to the stored value.
+    ///
+    /// `fetch_update_infallible` takes two [`Ordering`] arguments to describe the memory
+    /// ordering of this operation. The first describes the required ordering for
+    /// when the operation finally succeeds while the second describes the
+    /// required ordering for loads. These correspond to the success and failure
+    /// orderings of [`AtomicPtr::compare_exchange`] respectively.
+    ///
+    /// Using [`Acquire`] as success ordering makes the store part
+    /// of this operation [`Relaxed`], and using [`Release`] makes the final successful load
+    /// [`Relaxed`]. The (failed) load ordering can only be [`SeqCst`], [`Acquire`] or [`Relaxed`].
+    ///
+    /// **Note:** This method is only available on platforms that support atomic
+    /// operations on pointers.
+    ///
+    /// # Considerations
+    ///
+    /// This method is not magic;  it is not provided by the hardware.
+    /// It is implemented in terms of [`AtomicPtr::compare_exchange_weak`], and suffers from the same drawbacks.
+    /// In particular, this method will not circumvent the [ABA Problem].
+    ///
+    /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(fetch_update_infallible)]
+    ///
+    /// use std::sync::atomic::{AtomicPtr, Ordering};
+    ///
+    /// let ptr: *mut _ = &mut 5;
+    /// let some_ptr = AtomicPtr::new(ptr);
+    ///
+    /// let new: *mut _ = &mut 10;
+    /// let result = some_ptr.fetch_update_infallible(Ordering::SeqCst, Ordering::SeqCst, |_| new);
+    /// assert_eq!(result, ptr);
+    /// assert_eq!(some_ptr.load(Ordering::SeqCst), new);
+    /// ```
+    #[inline]
+    #[unstable(feature = "fetch_update_infallible", issue = "none")]
+    #[cfg(target_has_atomic = "8")]
+    #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+    pub fn fetch_update_infallible<F>(
+        &self,
+        set_order: Ordering,
+        fetch_order: Ordering,
+        mut f: F,
+    ) -> *mut T
+    where
+        F: FnMut(*mut T) -> *mut T,
+    {
+        let mut prev = self.load(fetch_order);
+        loop {
+            match self.compare_exchange_weak(prev, f(prev), set_order, fetch_order) {
+                Ok(x) => break x,
+                Err(next_prev) => prev = next_prev,
+            }
+        }
     }
 
     /// Offsets the pointer's address by adding `val` (in units of `T`),
@@ -2911,6 +3035,68 @@ macro_rules! atomic_int {
                     }
                 }
                 Err(prev)
+            }
+
+            /// Fetches the value, applies a function to it that it return a new value.
+            /// The new value is stored and the old value is returned.
+            ///
+            /// Note: This may call the function multiple times if the value has been changed from other threads in
+            /// the meantime, but the function will have been applied only once to the stored value.
+            ///
+            /// `fetch_update_infallible` takes two [`Ordering`] arguments to describe the memory ordering of this operation.
+            /// The first describes the required ordering for when the operation finally succeeds while the second
+            /// describes the required ordering for loads. These correspond to the success and failure orderings of
+            #[doc = concat!("[`", stringify!($atomic_type), "::compare_exchange`]")]
+            /// respectively.
+            ///
+            /// Using [`Acquire`] as success ordering makes the store part
+            /// of this operation [`Relaxed`], and using [`Release`] makes the final successful load
+            /// [`Relaxed`]. The (failed) load ordering can only be [`SeqCst`], [`Acquire`] or [`Relaxed`].
+            ///
+            /// **Note**: This method is only available on platforms that support atomic operations on
+            #[doc = concat!("[`", $s_int_type, "`].")]
+            ///
+            /// # Considerations
+            ///
+            /// This method is not magic;  it is not provided by the hardware.
+            /// It is implemented in terms of
+            #[doc = concat!("[`", stringify!($atomic_type), "::compare_exchange_weak`],")]
+            /// and suffers from the same drawbacks.
+            /// In particular, this method will not circumvent the [ABA Problem].
+            ///
+            /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
+            ///
+            /// # Examples
+            ///
+            /// ```rust
+            /// #![feature(fetch_update_infallible)]
+            #[doc = concat!($extra_feature, "use std::sync::atomic::{", stringify!($atomic_type), ", Ordering};")]
+            ///
+            #[doc = concat!("let x = ", stringify!($atomic_type), "::new(7);")]
+            /// assert_eq!(x.fetch_update_infallible(Ordering::SeqCst, Ordering::SeqCst, |x| x + 1), 7);
+            /// assert_eq!(x.fetch_update_infallible(Ordering::SeqCst, Ordering::SeqCst, |x| x + 1), 8);
+            /// assert_eq!(x.load(Ordering::SeqCst), 9);
+            /// ```
+            #[inline]
+            #[unstable(feature = "fetch_update_infallible", issue = "none")]
+            #[$cfg_cas]
+            #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+            pub fn fetch_update_infallible<F>(
+                &self,
+                set_order: Ordering,
+                fetch_order: Ordering,
+                mut f: F,
+            ) -> $int_type
+            where
+                F: FnMut($int_type) -> $int_type,
+            {
+                let mut prev = self.load(fetch_order);
+                loop {
+                    match self.compare_exchange_weak(prev, f(prev), set_order, fetch_order) {
+                        Ok(x) => break x,
+                        Err(next_prev) => prev = next_prev,
+                    }
+                }
             }
 
             /// Maximum with the current value.
