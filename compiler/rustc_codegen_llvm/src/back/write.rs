@@ -525,7 +525,7 @@ pub(crate) unsafe fn llvm_optimize(
     // source code. However, benchmarks show that optimizations increasing the code size
     // tend to reduce AD performance. Therefore deactivate them before AD, then differentiate the code
     // and finally re-optimize the module, now with all optimizations available.
-    // TODO: In a future update we could figure out how to only optimize individual functions getting
+    // FIXME(ZuseZ4): In a future update we could figure out how to only optimize individual functions getting
     // differentiated.
 
     let unroll_loops;
@@ -683,8 +683,7 @@ pub(crate) fn differentiate(
         crate::builder::generate_enzyme_call(llmod, llcx, fn_def, fn_target, item.attrs.clone());
     }
 
-    // FIXME(ZuseZ4): In the following upstream PR, we want to add code to handle SanitizeHWAddress,
-    // to prevent some illegal/unsupported optimizations.
+    // FIXME(ZuseZ4): support SanitizeHWAddress and prevent illegal/unsupported opts
 
     if let Some(opt_level) = config.opt_level {
         let opt_stage = match cgcx.lto {
@@ -736,8 +735,7 @@ pub(crate) unsafe fn optimize(
         unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
 
-    // FIXME(ZuseZ4): In the following PR, we have to add code to apply the sanitize_hwaddress
-    // attribute to all functions in the module, to prevent some illegal/unsupported optimizations.
+    // FIXME(ZuseZ4): support SanitizeHWAddress and prevent illegal/unsupported opts
 
     if let Some(opt_level) = config.opt_level {
         let opt_stage = match cgcx.lto {

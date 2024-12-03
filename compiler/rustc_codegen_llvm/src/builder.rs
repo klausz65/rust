@@ -48,16 +48,15 @@ fn get_params(fnc: &Value) -> Vec<&Value> {
     }
 }
 
-// The lowering of one `#[autodiff]` macro happens in multiple steps.
-// First we transalte generate a new dummy function, who's llvm-ir we now have as outer_fn.
-// We kept track of the original function to which the `#[autodiff]` macro was applied to, which we
-// now have as fn_to_diff. In our current implementation, we use the enzyme pass to carry out the
-// differentiation, following naming and calling conventions documented here: <https://enzyme.mit.edu/getting_started/CallingConvention/>
-//
-// Our `outer_fn` had some dummy code inserted at higher levels, so we first remove most of the
-// existing body. We then insert an `__enzyme_<autodiff/fwddiff>_<unique_id>` call, which the pass
-// will then pick up. FIXME(ZuseZ4): We will later want to upstream safety checks to the `outer_fn`,
-// in order to cover some assumptions of enzyme/autodiff, which could lead to UB otherwise.
+/// When differentiating `fn_to_diff`, take a `outer_fn` and generate another
+/// function with expected naming and calling conventions[^1] which will be
+/// discovered by the enzyme LLVM pass and its body populated with the differentiated
+/// `fn_to_diff`. `outer_fn` is then modified to have a call to the generated
+/// function and handle the differences between the Rust calling convention and
+/// Enzyme.
+/// [^1]: <https://enzyme.mit.edu/getting_started/CallingConvention/>
+// FIXME(ZuseZ4): `outer_fn` should include upstream safety checks to
+// cover some assumptions of enzyme/autodiff, which could lead to UB otherwise.
 pub(crate) fn generate_enzyme_call<'ll>(
     llmod: &'ll llvm::Module,
     llcx: &'ll llvm::Context,
@@ -69,7 +68,7 @@ pub(crate) fn generate_enzyme_call<'ll>(
     let output = attrs.ret_activity;
 
     // We have to pick the name depending on whether we want forward or reverse mode autodiff.
-    // FIXME(ZuseZ4): The new pass based approach should not need the *First method anymore, since
+    // FIXME(ZuseZ4): The new pass based approach should not need the {Forward/Reverse}First method anymore, since
     // it will handle higher-order derivatives correctly automatically (in theory). Currently
     // higher-order derivatives fail, so we should debug that before adjusting this code.
     let mut ad_name: String = match attrs.mode {
@@ -87,9 +86,30 @@ pub(crate) fn generate_enzyme_call<'ll>(
     let outer_fn_name = std::ffi::CStr::from_bytes_with_nul(name).unwrap().to_str().unwrap();
     ad_name.push_str(outer_fn_name.to_string().as_str());
 
-    // Assuming that our fn_to_diff is the fnc square, want to generate the following llvm-ir, which
-    // would allow the enzyme pass to generate a function body for `__enzyme_autodiff_square`
+    // Let us assume the user wrote the following function square:
     //
+    // ```llvm
+    // define double @square(double %x) {
+    // entry:
+    //  %0 = fmul double %x, %x
+    //  ret double %0
+    // }
+    // ```
+    //
+    // The user now applies autodiff to the function square, in which case fn_to_diff will be `square`.
+    // Our macro generates the following placeholder code (slightly simplified):
+    //
+    // ```llvm
+    // define double @dsquare(double %x) {
+    //  ; placeholder code
+    //  return 0.0;
+    // }
+    // ```
+    //
+    // so our `outer_fn` will be `dsquare`. The unsafe code section below now removes the placeholder
+    // code and inserts an autodiff call. We also add a declaration for the __enzyme_autodiff call.
+    // Again, the arguments to all functions are slightly simplified.
+    // ```llvm
     // declare double @__enzyme_autodiff_square(...)
     //
     // define double @dsquare(double %x) {
@@ -97,6 +117,7 @@ pub(crate) fn generate_enzyme_call<'ll>(
     //   %0 = tail call double (...) @__enzyme_autodiff_square(double (double)* nonnull @square, double %x)
     //   ret double %0
     // }
+    // ```
     unsafe {
         // On LLVM-IR, we can luckily declare __enzyme_ functions without specifying the input
         // arguments. We do however need to declare them with their correct return type.

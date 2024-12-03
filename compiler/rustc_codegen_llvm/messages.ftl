@@ -1,3 +1,5 @@
+codegen_llvm_autodiff_without_lto = using the autodiff feature requires using fat-lto
+
 codegen_llvm_copy_bitcode = failed to copy bitcode to object file: {$err}
 
 codegen_llvm_dynamic_linking_with_lto =
@@ -47,6 +49,8 @@ codegen_llvm_parse_bitcode_with_llvm_err = failed to parse bitcode for LTO modul
 codegen_llvm_parse_target_machine_config =
     failed to parse target machine config to target machine: {$error}
 
+codegen_llvm_prepare_autodiff = failed to prepare autodiff: src: {$src}, target: {$target}, {$error}
+codegen_llvm_prepare_autodiff_with_llvm_err = failed to prepare autodiff: {$llvm_err}, src: {$src}, target: {$target}, {$error}
 codegen_llvm_prepare_thin_lto_context = failed to prepare thin LTO context
 codegen_llvm_prepare_thin_lto_context_with_llvm_err = failed to prepare thin LTO context: {$llvm_err}
 
@@ -55,10 +59,6 @@ codegen_llvm_prepare_thin_lto_module_with_llvm_err = failed to prepare thin LTO 
 
 codegen_llvm_run_passes = failed to run LLVM passes
 codegen_llvm_run_passes_with_llvm_err = failed to run LLVM passes: {$llvm_err}
-
-codegen_llvm_prepare_autodiff = failed to prepare autodiff: src: {$src}, target: {$target}, {$error}
-codegen_llvm_prepare_autodiff_with_llvm_err = failed to prepare autodiff: {$llvm_err}, src: {$src}, target: {$target}, {$error}
-codegen_llvm_autodiff_without_lto = using the autodiff feature requires using fat-lto
 
 codegen_llvm_sanitizer_memtag_requires_mte =
     `-Zsanitizer=memtag` requires `-Ctarget-feature=+mte`
