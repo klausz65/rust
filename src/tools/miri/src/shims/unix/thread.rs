@@ -1,4 +1,4 @@
-use rustc_abi::ExternAbi;
+
 
 use crate::*;
 
@@ -29,7 +29,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         this.start_regular_thread(
             Some(thread_info_place),
             start_routine,
-            ExternAbi::C { unwind: false },
+            Conv::C,
             func_arg,
             this.machine.layouts.mut_raw_ptr,
         )?;

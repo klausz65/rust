@@ -29,7 +29,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use miri::{BacktraceStyle, BorrowTrackerMethod, ProvenanceMode, RetagFields, ValidationMode};
-use rustc_abi::ExternAbi;
 use rustc_data_structures::sync::Lrc;
 use rustc_driver::Compilation;
 use rustc_hir::def_id::LOCAL_CRATE;
@@ -368,7 +367,7 @@ fn entry_fn(tcx: TyCtxt<'_>) -> (DefId, EntryFnType) {
             tcx.types.isize,
             false,
             hir::Safety::Safe,
-            ExternAbi::Rust,
+            Conv::Rust,
         ));
 
         let correct_func_sig = check_function_signature(

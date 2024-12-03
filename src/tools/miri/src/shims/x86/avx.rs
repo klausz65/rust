@@ -35,7 +35,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // semantics.
             "min.ps.256" | "max.ps.256" => {
                 let [left, right] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which = match unprefixed_name {
                     "min.ps.256" => FloatBinOp::Min,
@@ -48,7 +48,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement _mm256_min_pd and _mm256_max_pd functions.
             "min.pd.256" | "max.pd.256" => {
                 let [left, right] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which = match unprefixed_name {
                     "min.pd.256" => FloatBinOp::Min,
@@ -62,7 +62,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Rounds the elements of `op` according to `rounding`.
             "round.ps.256" => {
                 let [op, rounding] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 round_all::<rustc_apfloat::ieee::Single>(this, op, rounding, dest)?;
             }
@@ -70,14 +70,14 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Rounds the elements of `op` according to `rounding`.
             "round.pd.256" => {
                 let [op, rounding] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 round_all::<rustc_apfloat::ieee::Double>(this, op, rounding, dest)?;
             }
             // Used to implement _mm256_{rcp,rsqrt}_ps functions.
             // Performs the operations on all components of `op`.
             "rcp.ps.256" | "rsqrt.ps.256" => {
-                let [op] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [op] = this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which = match unprefixed_name {
                     "rcp.ps.256" => FloatUnaryOp::Rcp,
@@ -90,7 +90,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement the _mm256_dp_ps function.
             "dp.ps.256" => {
                 let [left, right, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 conditional_dot_product(this, left, right, imm, dest)?;
             }
@@ -99,7 +99,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // in `left` and `right`.
             "hadd.ps.256" | "hadd.pd.256" | "hsub.ps.256" | "hsub.pd.256" => {
                 let [left, right] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which = match unprefixed_name {
                     "hadd.ps.256" | "hadd.pd.256" => mir::BinOp::Add,
@@ -115,7 +115,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // if true.
             "cmp.ps.256" => {
                 let [left, right, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which =
                     FloatBinOp::cmp_from_imm(this, this.read_scalar(imm)?.to_i8()?, link_name)?;
@@ -128,7 +128,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // if true.
             "cmp.pd.256" => {
                 let [left, right, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which =
                     FloatBinOp::cmp_from_imm(this, this.read_scalar(imm)?.to_i8()?, link_name)?;
@@ -139,7 +139,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // and _mm256_cvttpd_epi32 functions.
             // Converts packed f32/f64 to packed i32.
             "cvt.ps2dq.256" | "cvtt.ps2dq.256" | "cvt.pd2dq.256" | "cvtt.pd2dq.256" => {
-                let [op] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [op] = this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let rnd = match unprefixed_name {
                     // "current SSE rounding mode", assume nearest
@@ -158,7 +158,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // `control` determines which element of the current `data` array is written.
             "vpermilvar.ps" | "vpermilvar.ps.256" => {
                 let [data, control] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (data, data_len) = this.project_to_simd(data)?;
                 let (control, control_len) = this.project_to_simd(control)?;
@@ -192,7 +192,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // written.
             "vpermilvar.pd" | "vpermilvar.pd.256" => {
                 let [data, control] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (data, data_len) = this.project_to_simd(data)?;
                 let (control, control_len) = this.project_to_simd(control)?;
@@ -225,7 +225,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // zero, according to `imm`.
             "vperm2f128.ps.256" | "vperm2f128.pd.256" | "vperm2f128.si.256" => {
                 let [left, right, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 assert_eq!(dest.layout, left.layout);
                 assert_eq!(dest.layout, right.layout);
@@ -269,7 +269,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // loaded.
             "maskload.ps" | "maskload.pd" | "maskload.ps.256" | "maskload.pd.256" => {
                 let [ptr, mask] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 mask_load(this, ptr, mask, dest)?;
             }
@@ -280,7 +280,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Unlike SSE2's _mm_maskmoveu_si128, these are not non-temporal stores.
             "maskstore.ps" | "maskstore.pd" | "maskstore.ps.256" | "maskstore.pd.256" => {
                 let [ptr, mask, value] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 mask_store(this, ptr, mask, value)?;
             }
@@ -291,7 +291,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // unaligned read.
             "ldu.dq.256" => {
                 let [src_ptr] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let src_ptr = this.read_pointer(src_ptr)?;
                 let dest = dest.force_mplace(this)?;
 
@@ -304,7 +304,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // `op & mask != 0 && op & mask != mask`
             "ptestz.256" | "ptestc.256" | "ptestnzc.256" => {
                 let [op, mask] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (all_zero, masked_set) = test_bits_masked(this, op, mask)?;
                 let res = match unprefixed_name {
@@ -328,7 +328,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             | "vtestnzc.pd" | "vtestz.ps.256" | "vtestc.ps.256" | "vtestnzc.ps.256"
             | "vtestz.ps" | "vtestc.ps" | "vtestnzc.ps" => {
                 let [op, mask] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (direct, negated) = test_high_bits_masked(this, op, mask)?;
                 let res = match unprefixed_name {
@@ -350,7 +350,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 // compiler, making these functions no-ops.
 
                 // The only thing that needs to be ensured is the correct calling convention.
-                let [] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [] = this.check_shim(abi, Conv::C, link_name, args)?;
             }
             _ => return interp_ok(EmulateItemResult::NotSupported),
         }

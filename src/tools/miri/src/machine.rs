@@ -10,7 +10,7 @@ use std::{fmt, process};
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use rustc_abi::{Align, ExternAbi, Size};
+use rustc_abi::{Align, Size};
 use rustc_target::callconv::FnAbi;
 use rustc_attr::InlineAttr;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
@@ -1076,7 +1076,7 @@ impl<'tcx> Machine<'tcx> for MiriMachine<'tcx> {
         // Call the lang item.
         let panic = ecx.tcx.lang_items().get(reason.lang_item()).unwrap();
         let panic = ty::Instance::mono(ecx.tcx.tcx, panic);
-        ecx.call_function(panic, ExternAbi::Rust, &[], None, StackPopCleanup::Goto {
+        ecx.call_function(panic, Conv::Rust, &[], None, StackPopCleanup::Goto {
             ret: None,
             unwind: mir::UnwindAction::Unreachable,
         })?;

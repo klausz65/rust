@@ -54,7 +54,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement the _mm_sha256rnds2_epu32 function.
             "256rnds2" => {
                 let [a, b, k] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (a_reg, a_len) = this.project_to_simd(a)?;
                 let (b_reg, b_len) = this.project_to_simd(b)?;
@@ -76,7 +76,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement the _mm_sha256msg1_epu32 function.
             "256msg1" => {
                 let [a, b] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (a_reg, a_len) = this.project_to_simd(a)?;
                 let (b_reg, b_len) = this.project_to_simd(b)?;
@@ -95,7 +95,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement the _mm_sha256msg2_epu32 function.
             "256msg2" => {
                 let [a, b] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (a_reg, a_len) = this.project_to_simd(a)?;
                 let (b_reg, b_len) = this.project_to_simd(b)?;

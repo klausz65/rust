@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::path::{self, Path, PathBuf};
 use std::{io, iter, str};
 
-use rustc_abi::{Align, ExternAbi, Size};
+use rustc_abi::{Align, Size};
 use rustc_span::Symbol;
 use rustc_target::callconv::FnAbi;
 use rustc_middle::ty::Ty;
@@ -792,8 +792,9 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                     );
                 }
                 // This function looks and behaves excatly like miri_start_unwind.
+                // TODO: this is an unwind: true, would it still be correct after it is changed to Conv::C?
                 let [payload] =
-                    this.check_shim(abi, ExternAbi::C { unwind: true }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 this.handle_miri_start_unwind(payload)?;
                 return interp_ok(EmulateItemResult::NeedsUnwind);
             }

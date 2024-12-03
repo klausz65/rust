@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::task::Poll;
 use std::{iter, thread};
 
-use rustc_abi::ExternAbi;
+
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::Namespace;
 use rustc_hir::def_id::DefId;
@@ -391,7 +391,7 @@ pub fn create_ecx<'tcx>(
 
             ecx.call_function(
                 start_instance,
-                ExternAbi::Rust,
+                Conv::Rust,
                 &[
                     ImmTy::from_scalar(
                         Scalar::from_pointer(main_ptr, &ecx),
@@ -409,7 +409,7 @@ pub fn create_ecx<'tcx>(
         EntryFnType::Start => {
             ecx.call_function(
                 entry_instance,
-                ExternAbi::Rust,
+                Conv::Rust,
                 &[argc, argv],
                 Some(&ret_place),
                 StackPopCleanup::Root { cleanup: true },

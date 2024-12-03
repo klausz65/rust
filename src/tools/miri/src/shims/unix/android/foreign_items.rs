@@ -1,4 +1,4 @@
-use rustc_abi::ExternAbi;
+
 use rustc_span::Symbol;
 use rustc_target::callconv::FnAbi;
 use rustc_middle::ty::Ty;
@@ -24,7 +24,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         match link_name.as_str() {
             // Miscellaneous
             "__errno" => {
-                let [] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let errno_place = this.last_error_place()?;
                 this.write_scalar(errno_place.to_ref(this).to_scalar(), dest)?;
             }

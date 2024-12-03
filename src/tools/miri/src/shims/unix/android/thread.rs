@@ -1,4 +1,4 @@
-use rustc_abi::{ExternAbi, Size};
+use rustc_abi::Size;
 use rustc_span::Symbol;
 use rustc_target::callconv::FnAbi;
 use rustc_middle::ty::Ty;
@@ -18,7 +18,7 @@ pub fn prctl<'tcx>(
 ) -> InterpResult<'tcx> {
     // We do not use `check_shim` here because `prctl` is variadic. The argument
     // count is checked bellow.
-    this.check_abi_and_shim_symbol_clash(abi, ExternAbi::C { unwind: false }, link_name)?;
+    this.check_abi_and_shim_symbol_clash(abi, Conv::C, link_name)?;
 
     // FIXME: Use constants once https://github.com/rust-lang/libc/pull/3941 backported to the 0.2 branch.
     let pr_set_name = 15;

@@ -11,7 +11,6 @@
 //!   gets popped *during unwinding*, we take the panic payload and store it according to the extra
 //!   metadata we remembered when pushing said frame.
 
-use rustc_abi::ExternAbi;
 use rustc_ast::Mutability;
 use rustc_middle::{mir, ty};
 use rustc_target::spec::PanicStrategy;
@@ -88,7 +87,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         trace!("try_fn: {:?}", f_instance);
         this.call_function(
             f_instance,
-            ExternAbi::Rust,
+            Conv::Rust,
             &[data.clone()],
             None,
             // Directly return to caller.
@@ -139,7 +138,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             trace!("catch_fn: {:?}", f_instance);
             this.call_function(
                 f_instance,
-                ExternAbi::Rust,
+                Conv::Rust,
                 &[catch_unwind.data, payload],
                 None,
                 // Directly return to caller of `try`.
@@ -168,7 +167,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         let panic = ty::Instance::mono(this.tcx.tcx, panic);
         this.call_function(
             panic,
-            ExternAbi::Rust,
+            Conv::Rust,
             &[this.mplace_to_ref(&msg)?],
             None,
             StackPopCleanup::Goto { ret: None, unwind },
@@ -187,7 +186,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         let panic = ty::Instance::mono(this.tcx.tcx, panic);
         this.call_function(
             panic,
-            ExternAbi::Rust,
+            Conv::Rust,
             &[this.mplace_to_ref(&msg)?],
             None,
             StackPopCleanup::Goto { ret: None, unwind: mir::UnwindAction::Unreachable },
@@ -216,7 +215,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 let panic_bounds_check = ty::Instance::mono(this.tcx.tcx, panic_bounds_check);
                 this.call_function(
                     panic_bounds_check,
-                    ExternAbi::Rust,
+                    Conv::Rust,
                     &[index, len],
                     None,
                     StackPopCleanup::Goto { ret: None, unwind },
@@ -237,7 +236,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                     ty::Instance::mono(this.tcx.tcx, panic_misaligned_pointer_dereference);
                 this.call_function(
                     panic_misaligned_pointer_dereference,
-                    ExternAbi::Rust,
+                    Conv::Rust,
                     &[required, found],
                     None,
                     StackPopCleanup::Goto { ret: None, unwind },
@@ -248,7 +247,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 // Call the lang item associated with this message.
                 let fn_item = this.tcx.require_lang_item(msg.panic_function(), None);
                 let instance = ty::Instance::mono(this.tcx.tcx, fn_item);
-                this.call_function(instance, ExternAbi::Rust, &[], None, StackPopCleanup::Goto {
+                this.call_function(instance, Conv::Rust, &[], None, StackPopCleanup::Goto {
                     ret: None,
                     unwind,
                 })?;

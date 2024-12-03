@@ -1,4 +1,4 @@
-use rustc_abi::ExternAbi;
+
 use rustc_span::Symbol;
 use rustc_target::callconv::FnAbi;
 use rustc_middle::ty::Ty;
@@ -24,7 +24,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Threading
             "pthread_set_name_np" => {
                 let [thread, name] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let max_len = usize::MAX; // FreeBSD does not seem to have a limit.
                 // FreeBSD's pthread_set_name_np does not return anything.
                 this.pthread_setname_np(
@@ -36,7 +36,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             }
             "pthread_get_name_np" => {
                 let [thread, name, len] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 // FreeBSD's pthread_get_name_np does not return anything
                 // and uses strlcpy, which truncates the resulting value,
                 // but always adds a null terminator (except for zero-sized buffers).
@@ -54,32 +54,32 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // since freebsd 12 the former form can be expected.
             "stat" | "stat@FBSD_1.0" => {
                 let [path, buf] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let result = this.macos_fbsd_stat(path, buf)?;
                 this.write_scalar(result, dest)?;
             }
             "lstat" | "lstat@FBSD_1.0" => {
                 let [path, buf] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let result = this.macos_fbsd_lstat(path, buf)?;
                 this.write_scalar(result, dest)?;
             }
             "fstat" | "fstat@FBSD_1.0" => {
                 let [fd, buf] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let result = this.macos_fbsd_fstat(fd, buf)?;
                 this.write_scalar(result, dest)?;
             }
             "readdir_r" | "readdir_r@FBSD_1.0" => {
                 let [dirp, entry, result] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let result = this.macos_fbsd_readdir_r(dirp, entry, result)?;
                 this.write_scalar(result, dest)?;
             }
 
             // Miscellaneous
             "__error" => {
-                let [] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let errno_place = this.last_error_place()?;
                 this.write_scalar(errno_place.to_ref(this).to_scalar(), dest)?;
             }
@@ -88,7 +88,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // These shims are enabled only when the caller is in the standard library.
             "pthread_attr_get_np" if this.frame_in_std() => {
                 let [_thread, _attr] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 this.write_null(dest)?;
             }
 

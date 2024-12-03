@@ -27,7 +27,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // in `left` and `right`.
             "hadd.ps" | "hadd.pd" | "hsub.ps" | "hsub.pd" => {
                 let [left, right] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let which = match unprefixed_name {
                     "hadd.ps" | "hadd.pd" => mir::BinOp::Add,
@@ -44,7 +44,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // unaligned read.
             "ldu.dq" => {
                 let [src_ptr] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let src_ptr = this.read_pointer(src_ptr)?;
                 let dest = dest.force_mplace(this)?;
 

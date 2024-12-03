@@ -224,7 +224,7 @@ fn deconstruct_args<'tcx>(
 
     if is_explicit {
         let [str1, len1, str2, len2, imm] =
-            this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+            this.check_shim(abi, Conv::C, link_name, args)?;
         let imm = this.read_scalar(imm)?.to_u8()?;
 
         let default_len = default_len::<u32>(imm);
@@ -238,7 +238,7 @@ fn deconstruct_args<'tcx>(
         interp_ok((str1, str2, Some((len1, len2)), imm))
     } else {
         let [str1, str2, imm] =
-            this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+            this.check_shim(abi, Conv::C, link_name, args)?;
         let imm = this.read_scalar(imm)?.to_u8()?;
 
         let array_layout = array_layout_fn(this, imm)?;
@@ -389,7 +389,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=924,925
             "pcmpistriz128" | "pcmpistris128" => {
                 let [str1, str2, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let imm = this.read_scalar(imm)?.to_u8()?;
 
                 let str = if unprefixed_name == "pcmpistris128" { str1 } else { str2 };
@@ -410,7 +410,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=1046,1047
             "pcmpestriz128" | "pcmpestris128" => {
                 let [_, len1, _, len2, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let len = if unprefixed_name == "pcmpestris128" { len1 } else { len2 };
                 let len = this.read_scalar(len)?.to_i32()?;
                 let imm = this.read_scalar(imm)?.to_u8()?;
@@ -438,7 +438,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
 
                 let [left, right] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
                 let left = this.read_scalar(left)?;
                 let right = this.read_scalar(right)?;
 

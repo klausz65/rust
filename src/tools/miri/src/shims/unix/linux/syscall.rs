@@ -18,7 +18,7 @@ pub fn syscall<'tcx>(
 ) -> InterpResult<'tcx> {
     // We do not use `check_shim` here because `syscall` is variadic. The argument
     // count is checked bellow.
-    this.check_abi_and_shim_symbol_clash(abi, ExternAbi::C { unwind: false }, link_name)?;
+    this.check_abi_and_shim_symbol_clash(abi, Conv::C, link_name)?;
     // The syscall variadic function is legal to call with more arguments than needed,
     // extra arguments are simply ignored. The important check is that when we use an
     // argument, we have to also check all arguments *before* it to ensure that they

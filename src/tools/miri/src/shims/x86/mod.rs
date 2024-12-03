@@ -89,7 +89,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // the instruction behaves like a no-op, so it is always safe to call the
             // intrinsic.
             "sse2.pause" => {
-                let [] = this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                let [] = this.check_shim(abi, Conv::C, link_name, args)?;
                 // Only exhibit the spin-loop hint behavior when SSE2 is enabled.
                 if this.tcx.sess.unstable_target_features.contains(&Symbol::intern("sse2")) {
                     this.yield_active_thread();
@@ -109,7 +109,7 @@ pub(super) trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
 
                 let [left, right, imm] =
-                    this.check_shim(abi, ExternAbi::C { unwind: false }, link_name, args)?;
+                    this.check_shim(abi, Conv::C, link_name, args)?;
 
                 pclmulqdq(this, left, right, imm, dest, len)?;
             }

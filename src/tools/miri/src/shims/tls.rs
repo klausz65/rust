@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry as BTreeEntry;
 use std::task::Poll;
 
-use rustc_abi::{ExternAbi, HasDataLayout, Size};
+use rustc_abi::{HasDataLayout, Size};
 use rustc_middle::ty;
 
 use crate::*;
@@ -322,6 +322,7 @@ trait EvalContextPrivExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
         // but both are ignored by std.
         this.call_function(
             thread_callback,
+            // TODO: is there any equivalent Conv:: that we can use here? 
             ExternAbi::System { unwind: false },
             &[null_ptr.clone(), ImmTy::from_scalar(reason, this.machine.layouts.u32), null_ptr],
             None,
@@ -343,7 +344,7 @@ trait EvalContextPrivExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             this.call_function(
                 instance,
-                ExternAbi::C { unwind: false },
+                Conv::C,
                 &[ImmTy::from_scalar(data, this.machine.layouts.mut_raw_ptr)],
                 None,
                 StackPopCleanup::Root { cleanup: true },
@@ -380,7 +381,7 @@ trait EvalContextPrivExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             this.call_function(
                 instance,
-                ExternAbi::C { unwind: false },
+                Conv::C,
                 &[ImmTy::from_scalar(ptr, this.machine.layouts.mut_raw_ptr)],
                 None,
                 StackPopCleanup::Root { cleanup: true },
