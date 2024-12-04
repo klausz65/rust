@@ -2085,8 +2085,19 @@ fn add_linked_symbol_object(
         file.set_mangling(object::write::Mangling::None);
     }
 
+    // ld64 requires a relocation to load undefined symbols, see below.
+    let ld64_section_helper = if file.format() == object::BinaryFormat::MachO {
+        Some(file.add_section(
+            file.segment_name(object::write::StandardSegment::Text).to_vec(),
+            "__text".into(),
+            object::SectionKind::Text,
+        ))
+    } else {
+        None
+    };
+
     for (sym, kind) in symbols.iter() {
-        file.add_symbol(object::write::Symbol {
+        let symbol = file.add_symbol(object::write::Symbol {
             name: sym.clone().into(),
             value: 0,
             size: 0,
@@ -2100,6 +2111,23 @@ fn add_linked_symbol_object(
             section: object::write::SymbolSection::Undefined,
             flags: object::SymbolFlags::None,
         });
+
+        // TODO: Explain.
+        if let Some(section) = ld64_section_helper {
+            // TODO: Use architecture-specific data.
+            let offset = file.section_mut(section).append_data(&[0, 0, 0, 20], 4);
+            file.add_relocation(section, object::write::Relocation {
+                offset,
+                addend: 0,
+                symbol,
+                flags: object::write::RelocationFlags::MachO {
+                    r_type: object::macho::ARM64_RELOC_BRANCH26,
+                    r_pcrel: true,
+                    r_length: 2,
+                },
+            })
+            .expect("failed adding relocation");
+        }
     }
 
     let path = tmpdir.join("symbols.o");
