@@ -35,9 +35,9 @@ fn match_covariant_ref<'a>() {
     // `y.0`), but using the associated const directly in the pattern also
     // errors.
     let y: (CovariantRef<'static, _>,) = (CovariantRef(&()),);
-    //~^ ERROR lifetime may not live long enough
     match y.0 {
         const { CovariantRef::<'a>::NEW } => (),
+        //~^ ERROR lifetime may not live long enough
     }
 }
 
