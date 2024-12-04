@@ -432,10 +432,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let otherwise = targets.otherwise();
             let otherwise_cold = self.cold_blocks[otherwise];
             let otherwise_unreachable = self.mir[otherwise].is_empty_unreachable();
-            let cold_count = targets
-                .iter()
-                .filter(|(_, target)| self.cold_blocks[*target] == otherwise_cold)
-                .count();
+            let cold_count = targets.iter().filter(|(_, target)| self.cold_blocks[*target]).count();
             let none_cold = cold_count == 0;
             let all_cold = cold_count == targets.iter().len();
             if (none_cold && (!otherwise_cold || otherwise_unreachable))
