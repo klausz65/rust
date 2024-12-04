@@ -23,6 +23,13 @@ pub use adt::*;
 pub use assoc::*;
 pub use generic_args::{GenericArgKind, TermKind, *};
 pub use generics::*;
+// Can't use a glob import here as it would cause
+// ambiguity when importing the actual types implementing
+// the inherent traits from this module.
+// FIXME(clippy#13764): remove this `allow`.
+#[allow(clippy::useless_attribute)]
+#[allow(rustc::non_glob_import_of_type_ir_inherent)]
+use inherent::SliceLike;
 pub use intrinsic::IntrinsicDef;
 use rustc_abi::{Align, FieldIdx, Integer, IntegerType, ReprFlags, ReprOptions, VariantIdx};
 use rustc_ast::expand::StrippedCfgItem;
@@ -970,7 +977,7 @@ pub struct ParamEnv<'tcx> {
 }
 
 impl<'tcx> rustc_type_ir::inherent::ParamEnv<TyCtxt<'tcx>> for ParamEnv<'tcx> {
-    fn caller_bounds(self) -> impl IntoIterator<Item = ty::Clause<'tcx>> {
+    fn caller_bounds(self) -> impl SliceLike<Item = ty::Clause<'tcx>> {
         self.caller_bounds()
     }
 }
