@@ -16,6 +16,7 @@ use rustc_span::symbol::{Symbol, kw, sym};
 /// We really want to keep the number of variants to 128 or fewer, so that
 /// `TokenTypeSet` can be implemented with a `u128`.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(u8)]
 pub enum TokenType {
     // Expression-operator symbols
     Eq,
@@ -146,126 +147,6 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    fn from_u32(val: u32) -> TokenType {
-        let token_type = match val {
-            0 => TokenType::Eq,
-            1 => TokenType::Lt,
-            2 => TokenType::Le,
-            3 => TokenType::EqEq,
-            4 => TokenType::Gt,
-            5 => TokenType::AndAnd,
-            6 => TokenType::OrOr,
-            7 => TokenType::Not,
-            8 => TokenType::Tilde,
-
-            9 => TokenType::Plus,
-            10 => TokenType::Minus,
-            11 => TokenType::Star,
-            12 => TokenType::And,
-            13 => TokenType::Or,
-
-            14 => TokenType::At,
-            15 => TokenType::Dot,
-            16 => TokenType::DotDot,
-            17 => TokenType::DotDotDot,
-            18 => TokenType::DotDotEq,
-            19 => TokenType::Comma,
-            20 => TokenType::Semi,
-            21 => TokenType::Colon,
-            22 => TokenType::PathSep,
-            23 => TokenType::RArrow,
-            24 => TokenType::FatArrow,
-            25 => TokenType::Pound,
-            26 => TokenType::Question,
-            27 => TokenType::OpenParen,
-            28 => TokenType::CloseParen,
-            29 => TokenType::OpenBrace,
-            30 => TokenType::CloseBrace,
-            31 => TokenType::OpenBracket,
-            32 => TokenType::CloseBracket,
-            33 => TokenType::Eof,
-
-            34 => TokenType::Operator,
-            35 => TokenType::Ident,
-            36 => TokenType::Lifetime,
-            37 => TokenType::Path,
-            38 => TokenType::Type,
-            39 => TokenType::Const,
-
-            40 => TokenType::KwAs,
-            41 => TokenType::KwAsync,
-            42 => TokenType::KwAuto,
-            43 => TokenType::KwAwait,
-            44 => TokenType::KwBecome,
-            45 => TokenType::KwBox,
-            46 => TokenType::KwBreak,
-            47 => TokenType::KwCatch,
-            48 => TokenType::KwConst,
-            49 => TokenType::KwContinue,
-            50 => TokenType::KwCrate,
-            51 => TokenType::KwDefault,
-            52 => TokenType::KwDyn,
-            53 => TokenType::KwElse,
-            54 => TokenType::KwEnum,
-            55 => TokenType::KwExtern,
-            56 => TokenType::KwFn,
-            57 => TokenType::KwFor,
-            58 => TokenType::KwGen,
-            59 => TokenType::KwIf,
-            60 => TokenType::KwImpl,
-            61 => TokenType::KwIn,
-            62 => TokenType::KwLet,
-            63 => TokenType::KwLoop,
-            64 => TokenType::KwMacro,
-            65 => TokenType::KwMacroRules,
-            66 => TokenType::KwMatch,
-            67 => TokenType::KwMod,
-            68 => TokenType::KwMove,
-            69 => TokenType::KwMut,
-            70 => TokenType::KwPub,
-            71 => TokenType::KwRaw,
-            72 => TokenType::KwRef,
-            73 => TokenType::KwReturn,
-            74 => TokenType::KwReuse,
-            75 => TokenType::KwSafe,
-            76 => TokenType::KwSelfUpper,
-            77 => TokenType::KwStatic,
-            78 => TokenType::KwStruct,
-            79 => TokenType::KwTrait,
-            80 => TokenType::KwTry,
-            81 => TokenType::KwType,
-            82 => TokenType::KwUnderscore,
-            83 => TokenType::KwUnsafe,
-            84 => TokenType::KwUse,
-            85 => TokenType::KwWhere,
-            86 => TokenType::KwWhile,
-            87 => TokenType::KwYield,
-
-            88 => TokenType::SymAttSyntax,
-            89 => TokenType::SymClobberAbi,
-            90 => TokenType::SymInlateout,
-            91 => TokenType::SymInout,
-            92 => TokenType::SymIs,
-            93 => TokenType::SymLabel,
-            94 => TokenType::SymLateout,
-            95 => TokenType::SymMayUnwind,
-            96 => TokenType::SymNomem,
-            97 => TokenType::SymNoreturn,
-            98 => TokenType::SymNostack,
-            99 => TokenType::SymOptions,
-            100 => TokenType::SymOut,
-            101 => TokenType::SymPreservesFlags,
-            102 => TokenType::SymPure,
-            103 => TokenType::SymReadonly,
-            104 => TokenType::SymSym,
-
-            _ => panic!("unhandled value: {val}"),
-        };
-        // This assertion will detect if this method and the type definition get out of sync.
-        assert_eq!(token_type as u32, val);
-        token_type
-    }
-
     pub(super) fn is_keyword(&self) -> Option<Symbol> {
         match self {
             TokenType::KwAs => Some(kw::As),
@@ -614,7 +495,10 @@ impl Iterator for TokenTypeSetIter {
             None
         } else {
             self.0.0 &= !(1 << z); // clear the trailing 1 bit
-            Some(TokenType::from_u32(z))
+
+            // SAFETY: `TokenType` is a `repr(u8)` enum.
+            let token_type = unsafe { std::mem::transmute(z as u8) };
+            Some(token_type)
         }
     }
 }
