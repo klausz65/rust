@@ -39,6 +39,8 @@ declare_lint_pass! {
         DEPRECATED_SAFE_2024,
         DEPRECATED_WHERE_CLAUSE_LOCATION,
         DUPLICATE_MACRO_ATTRIBUTES,
+        DYN_ASSOC_REDUNDANT,
+        DYN_ASSOC_SHADOWED,
         ELIDED_LIFETIMES_IN_ASSOCIATED_CONSTANT,
         ELIDED_LIFETIMES_IN_PATHS,
         ELIDED_NAMED_LIFETIMES,
@@ -5110,6 +5112,20 @@ declare_lint! {
         reference: "issue #123735 <https://github.com/rust-lang/rust/issues/123735>",
     };
     crate_level_only
+}
+
+declare_lint! {
+    /// Hi
+    pub DYN_ASSOC_REDUNDANT,
+    Warn,
+    "oops",
+}
+
+declare_lint! {
+    /// Hi
+    pub DYN_ASSOC_SHADOWED,
+    Deny,
+    "oops",
 }
 
 declare_lint! {

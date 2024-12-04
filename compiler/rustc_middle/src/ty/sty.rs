@@ -978,6 +978,10 @@ impl<'tcx> rustc_type_ir::inherent::Ty<TyCtxt<'tcx>> for Ty<'tcx> {
     fn async_destructor_ty(self, interner: TyCtxt<'tcx>) -> Ty<'tcx> {
         self.async_destructor_ty(interner)
     }
+
+    fn is_self_param(self) -> bool {
+        self.is_param(0)
+    }
 }
 
 /// Type utilities
