@@ -44,8 +44,6 @@ mod diagnostics;
 
 type Res = def::Res<NodeId>;
 
-type IdentMap<T> = FxHashMap<Ident, T>;
-
 use diagnostics::{ElisionFnParameter, LifetimeElisionCandidate, MissingLifetime};
 
 #[derive(Copy, Clone, Debug)]
@@ -261,7 +259,7 @@ impl RibKind<'_> {
 /// resolving, the name is looked up from inside out.
 #[derive(Debug)]
 pub(crate) struct Rib<'ra, R = Res> {
-    pub bindings: IdentMap<R>,
+    pub bindings: FxIndexMap<Ident, R>,
     pub kind: RibKind<'ra>,
 }
 
@@ -1535,7 +1533,7 @@ impl<'a, 'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
                         // Allow all following defaults to refer to this type parameter.
                         forward_ty_ban_rib
                             .bindings
-                            .remove(&Ident::with_dummy_span(param.ident.name));
+                            .swap_remove(&Ident::with_dummy_span(param.ident.name));
                     }
                     GenericParamKind::Const { ref ty, kw_span: _, ref default } => {
                         // Const parameters can't have param bounds.
@@ -1563,7 +1561,7 @@ impl<'a, 'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
                         // Allow all following defaults to refer to this const parameter.
                         forward_const_ban_rib
                             .bindings
-                            .remove(&Ident::with_dummy_span(param.ident.name));
+                            .swap_remove(&Ident::with_dummy_span(param.ident.name));
                     }
                 }
             }
@@ -2245,6 +2243,8 @@ impl<'a, 'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
                         }
                     }));
                 }
+                // Ordering is not important if there's only one element in the set.
+                #[allow(rustc::potential_query_instability)]
                 let mut distinct_iter = distinct.into_iter();
                 if let Some(res) = distinct_iter.next() {
                     match elision_lifetime {
@@ -3853,7 +3853,7 @@ impl<'a, 'ast, 'ra: 'ast, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
         }
     }
 
-    fn innermost_rib_bindings(&mut self, ns: Namespace) -> &mut IdentMap<Res> {
+    fn innermost_rib_bindings(&mut self, ns: Namespace) -> &mut FxIndexMap<Ident, Res> {
         &mut self.ribs[ns].last_mut().unwrap().bindings
     }
 
@@ -5009,7 +5009,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let mut late_resolution_visitor = LateResolutionVisitor::new(self);
         late_resolution_visitor.resolve_doc_links(&krate.attrs, MaybeExported::Ok(CRATE_NODE_ID));
         visit::walk_crate(&mut late_resolution_visitor, krate);
-        for (id, span) in late_resolution_visitor.diag_metadata.unused_labels.iter() {
+        // Make ordering consistent before iteration
+        #[allow(rustc::potential_query_instability)]
+        let mut unused_labels: Vec<_> =
+            late_resolution_visitor.diag_metadata.unused_labels.iter().collect();
+        unused_labels.sort_by_key(|&(key, _)| key);
+        for (id, span) in unused_labels {
             self.lint_buffer.buffer_lint(
                 lint::builtin::UNUSED_LABELS,
                 *id,
