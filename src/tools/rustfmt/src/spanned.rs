@@ -58,6 +58,7 @@ implement_spanned!(ast::ExprField);
 implement_spanned!(ast::ForeignItem);
 implement_spanned!(ast::Item);
 implement_spanned!(ast::Local);
+implement_spanned!(ast::WherePredicate);
 
 impl Spanned for ast::Stmt {
     fn span(&self) -> Span {
@@ -145,12 +146,6 @@ impl Spanned for ast::GenericParam {
 impl Spanned for ast::FieldDef {
     fn span(&self) -> Span {
         span_with_attrs_lo_hi!(self, self.span.lo(), self.ty.span.hi())
-    }
-}
-
-impl Spanned for ast::WherePredicate {
-    fn span(&self) -> Span {
-        self.span
     }
 }
 
