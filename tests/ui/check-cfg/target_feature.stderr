@@ -98,6 +98,7 @@ LL |     cfg!(target_feature = "_UNEXPECTED_VALUE");
 `fp8dot2`
 `fp8dot4`
 `fp8fma`
+`fpregs`
 `fpuv2_df`
 `fpuv2_sf`
 `fpuv3_df`
@@ -260,6 +261,7 @@ LL |     cfg!(target_feature = "_UNEXPECTED_VALUE");
 `vsx`
 `wfxt`
 `wide-arithmetic`
+`x87`
 `xop`
 `xsave`
 `xsavec`
