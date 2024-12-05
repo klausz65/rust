@@ -49,6 +49,10 @@ passes_attr_crate_level =
 passes_attr_only_in_functions =
     `{$attr}` attribute can only be used on functions
 
+passes_attribute_not_allowed =
+    The `[instruction_set]` attribute contains an invalid argument
+    .label = Invalid argument in the `[instruction_set]` attribute
+
 passes_autodiff_attr =
     `#[autodiff]` should be applied to a function
     .label = not a function
@@ -311,6 +315,10 @@ passes_duplicate_lang_item_crate_depends =
 passes_empty_confusables =
     expected at least one confusable name
 
+passes_empty_instruction_set =
+    `[instruction_set]` requires an argument
+    .label = `[instruction_set]` requires an argument
+
 passes_export_name =
     attribute should be applied to a free function, impl method or static
     .label = not a free function, impl method or static
@@ -400,9 +408,17 @@ passes_invalid_attr_at_crate_level =
 passes_invalid_attr_at_crate_level_item =
     the inner attribute doesn't annotate this {$kind}
 
+passes_invalid_instruction_set =
+    `[instruction_set]` attribute argument should be valid
+    .label = `[instruction_set]` containes invalid argument
+
 passes_invalid_macro_export_arguments = `{$name}` isn't a valid `#[macro_export]` argument
 
 passes_invalid_macro_export_arguments_too_many_items = `#[macro_export]` can only take 1 or 0 arguments
+
+passes_invalid_target_for_instruction_set =
+    The `[instruction_set]` attribute is only allowed on functions
+    .label = Invalid target for the `[instruction_set]` attribute
 
 passes_lang_item_fn = {$name ->
     [panic_impl] `#[panic_handler]`

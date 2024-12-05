@@ -7,6 +7,8 @@
 use std::cell::Cell;
 use std::collections::hash_map::Entry;
 
+use rustc_ast::token::TokenKind;
+use rustc_ast::tokenstream::TokenTree;
 use rustc_ast::{
     AttrKind, AttrStyle, Attribute, LitKind, MetaItemInner, MetaItemKind, MetaItemLit, ast,
 };
@@ -16,7 +18,7 @@ use rustc_feature::{AttributeDuplicates, AttributeType, BUILTIN_ATTRIBUTE_MAP, B
 use rustc_hir::def_id::LocalModDefId;
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{
-    self as hir, self, AssocItemKind, CRATE_HIR_ID, CRATE_OWNER_ID, FnSig, ForeignItem, HirId,
+    self, self as hir, AssocItemKind, CRATE_HIR_ID, CRATE_OWNER_ID, FnSig, ForeignItem, HirId,
     Item, ItemKind, MethodKind, Safety, Target, TraitItem,
 };
 use rustc_macros::LintDiagnostic;
@@ -250,6 +252,9 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 }
                 [sym::linkage, ..] => self.check_linkage(attr, span, target),
                 [sym::rustc_pub_transparent, ..] => self.check_rustc_pub_transparent( attr.span, span, attrs),
+                [sym::instruction_set, ..] => {
+                    self.check_instruction_set(attr, item);
+                }
                 [
                     // ok
                     sym::allow
@@ -265,7 +270,6 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     | sym::omit_gdb_pretty_printer_section // FIXME(omit_gdb_pretty_printer_section)
                     | sym::used // handled elsewhere to restrict to static items
                     | sym::repr // handled elsewhere to restrict to type decls items
-                    | sym::instruction_set // broken on stable!!!
                     | sym::windows_subsystem // broken on stable!!!
                     | sym::patchable_function_entry // FIXME(patchable_function_entry)
                     | sym::deprecated_safe // FIXME(deprecated_safe)
@@ -2432,6 +2436,78 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 self.dcx().emit_err(errors::AutoDiffAttr { attr_span: span });
                 self.abort.set(true);
+            }
+        }
+    }
+
+    fn check_instruction_set(&self, attr: &Attribute, item: Option<ItemLike<'_>>) {
+        // Ensure the attribute is applied to a function or closure
+        match item {
+            Some(ItemLike::Item(inner_item)) => match inner_item.kind {
+                ItemKind::Fn(_, _, _) => {
+                    // Validate the tokens for `instruction_set()` attribute
+                    if let AttrKind::Normal(ref p) = attr.kind {
+                        let inner_tokens = p.item.args.inner_tokens();
+                        let mut tokens = inner_tokens.trees();
+
+                        match (tokens.next(), tokens.next(), tokens.next()) {
+                            (
+                                Some(TokenTree::Token(first_token, _)),
+                                Some(TokenTree::Token(second_token, _)),
+                                Some(TokenTree::Token(third_token, _)),
+                            ) => match (
+                                first_token.ident(),
+                                second_token.kind.clone(),
+                                third_token.ident(),
+                            ) {
+                                (Some(first_ident), TokenKind::PathSep, Some(third_ident))
+                                    if first_ident.0.name == sym::arm =>
+                                {
+                                    if third_ident.0.name == sym::a32
+                                        || third_ident.0.name == sym::t32
+                                    {
+                                        return;
+                                    } else {
+                                        self.dcx().emit_err(errors::InvalidInstructionSet {
+                                            span: attr.span,
+                                        });
+                                    }
+                                }
+                                _ => {
+                                    self.dcx().emit_err(errors::InvalidInstructionSet {
+                                        span: attr.span,
+                                    });
+                                }
+                            },
+                            (None, None, None) => {
+                                self.dcx()
+                                    .emit_err(errors::EmptyInstructionSet { span: attr.span });
+                            }
+                            _ => {
+                                self.dcx()
+                                    .emit_err(errors::InvalidInstructionSet { span: attr.span });
+                            }
+                        };
+                    }
+                }
+                _ => {
+                    self.dcx().emit_err(errors::InvalidTargetForInstructionSet {
+                        span: attr.span,
+                        item_kind: inner_item.kind.descr(),
+                    });
+                    return;
+                }
+            },
+            Some(ItemLike::ForeignItem) => {
+                self.dcx().emit_err(errors::InvalidTargetForInstructionSet {
+                    span: attr.span,
+                    item_kind: "foreign item",
+                });
+                return;
+            }
+            None => {
+                self.dcx().emit_err(errors::AttributeNotAllowed { span: attr.span });
+                return;
             }
         }
     }

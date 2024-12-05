@@ -376,42 +376,33 @@ fn codegen_fn_attrs(tcx: TyCtxt<'_>, did: LocalDefId) -> CodegenFnAttrs {
                                         Some(InstructionSetAttr::ArmA32)
                                     } else if segments[1] == sym::t32 {
                                         Some(InstructionSetAttr::ArmT32)
+                                    } else if segments[1] != sym::a32 || segments[1] != sym::t32 {
+                                        struct_span_code_err!(
+                                            tcx.dcx(),
+                                            attr.span,
+                                            E0779,
+                                            "`[instruction_set]` attribute argument should be valid"
+                                        )
+                                        .emit();
+                                        None
                                     } else {
                                         unreachable!()
                                     }
                                 }
-                                _ => {
+                                [] => {
                                     struct_span_code_err!(
                                         tcx.dcx(),
                                         attr.span,
-                                        E0779,
-                                        "invalid instruction set specified",
+                                        E0778,
+                                        "`[instruction_set]` requires an argument"
                                     )
                                     .emit();
                                     None
                                 }
+                                _ => None,
                             }
                         }
-                        [] => {
-                            struct_span_code_err!(
-                                tcx.dcx(),
-                                attr.span,
-                                E0778,
-                                "`#[instruction_set]` requires an argument"
-                            )
-                            .emit();
-                            None
-                        }
-                        _ => {
-                            struct_span_code_err!(
-                                tcx.dcx(),
-                                attr.span,
-                                E0779,
-                                "cannot specify more than one instruction set"
-                            )
-                            .emit();
-                            None
-                        }
+                        _ => None,
                     })
             }
             sym::repr => {
