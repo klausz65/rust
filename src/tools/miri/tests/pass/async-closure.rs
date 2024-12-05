@@ -1,4 +1,4 @@
-#![feature(async_closure, noop_waker, async_fn_traits)]
+#![feature(noop_waker, async_fn_traits)]
 #![allow(unused)]
 
 use std::future::Future;
