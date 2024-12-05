@@ -56,6 +56,7 @@ const itemTypes = [
     "derive",
     "traitalias", // 25
     "generic",
+    "crate",
 ];
 
 // used for special search precedence
@@ -63,6 +64,8 @@ const TY_PRIMITIVE = itemTypes.indexOf("primitive");
 const TY_GENERIC = itemTypes.indexOf("generic");
 const TY_IMPORT = itemTypes.indexOf("import");
 const TY_TRAIT = itemTypes.indexOf("trait");
+// minor hack to implement the `crate:` syntax
+const TY_CRATE = itemTypes.indexOf("crate");
 const ROOT_PATH = typeof window !== "undefined" ? window.rootPath : "../";
 
 // Hard limit on how deep to recurse into generics when doing type-driven search.
@@ -291,6 +294,20 @@ function getFilteredNextElem(query, parserState, elems, isInGenerics) {
         parserState.pos += 1;
         parserState.totalElems -= 1;
         query.literalSearch = false;
+        if (parserState.typeFilter === "crate") {
+            while (parserState.userQuery[parserState.pos] === " ") {
+                parserState.pos += 1;
+            }
+            const start = parserState.pos;
+            const foundCrate = consumeIdent(parserState);
+            if (!foundCrate) {
+                throw ["Expected ident after ", "crate:", ", found ", parserState.userQuery[start]];
+            }
+            const name = parserState.userQuery.substring(start, parserState.pos);
+            elems.push(makePrimitiveElement(name, { typeFilter: "crate" }));
+            parserState.typeFilter = null;
+            return getFilteredNextElem(query, parserState, elems, isInGenerics);
+        }
         getNextElem(query, parserState, elems, isInGenerics);
     }
 }
@@ -2078,6 +2095,7 @@ class DocSearch {
                 correction: null,
                 proposeCorrectionFrom: null,
                 proposeCorrectionTo: null,
+                filterCrates: null,
                 // bloom filter build from type ids
                 typeFingerprint: new Uint32Array(4),
             };
@@ -2204,6 +2222,20 @@ class DocSearch {
             query.error = err;
             return query;
         }
+
+        function handleCrateFilters(elem) {
+            if (elem.typeFilter === TY_CRATE) {
+                query.filterCrates = elem.name;
+                return false;
+            }
+            return true;
+
+        }
+        const nonCrateElems = query.elems.filter(handleCrateFilters);
+        if (nonCrateElems.length !== query.elems.length) {
+            query.elems = nonCrateElems;
+        }
+
         if (!query.literalSearch) {
             // If there is more than one element in the query, we switch to literalSearch in any
             // case.
@@ -4607,7 +4639,6 @@ function updateSearchHistory(url) {
 async function search(forced) {
     const query = DocSearch.parseQuery(searchState.input.value.trim());
     let filterCrates = getFilterCrates();
-
     if (!forced && query.userQuery === currentResults) {
         if (query.userQuery.length > 0) {
             putBackSearch();
@@ -4619,6 +4650,9 @@ async function search(forced) {
 
     const params = searchState.getQueryStringParams();
 
+    if (query.filterCrates !== null) {
+        filterCrates = query.filterCrates;
+    }
     // In case we have no information about the saved crate and there is a URL query parameter,
     // we override it with the URL query parameter.
     if (filterCrates === null && params["filter-crate"] !== undefined) {
@@ -4804,8 +4838,19 @@ function registerSearchEvents() {
 function updateCrate(ev) {
     if (ev.target.value === "all crates") {
         // If we don't remove it from the URL, it'll be picked up again by the search.
-        const query = searchState.input.value.trim();
+        const query = searchState.input.value.trim()
+            .replace(/crate:[a-zA-Z_0-9]+/, "");
         updateSearchHistory(buildUrl(query, null));
+        searchState.input.value = query;
+    } else {
+        const crate = ev.target.value;
+        // add/update the `crate:` syntax in the search bar
+        let newquery = searchState.input.value
+            .replace(/crate:[a-zA-Z_0-9]+/, "crate:" + crate);
+        if (!newquery.includes("crate:")) {
+            newquery = "crate:" + crate + " " + searchState.input.value;
+        }
+        searchState.input.value = newquery;
     }
     // In case you "cut" the entry from the search input, then change the crate filter
     // before paste back the previous search, you get the old search results without
