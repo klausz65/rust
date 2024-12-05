@@ -145,6 +145,10 @@ jobs:
       - name: install awscli
         run: src/ci/scripts/install-awscli.sh
 
+      - if: contains(matrix.os, 'codebuild-ubuntu')
+        name: Install sotftware for codebuild
+        run: chmod +x src/ci/scripts/ubuntu-codebuild.sh && ./src/ci/scripts/ubuntu-codebuild.sh
+
       - name: install sccache
         run: src/ci/scripts/install-sccache.sh
 
@@ -174,6 +178,8 @@ jobs:
 
       - name: enable ipv6 on Docker
         run: src/ci/scripts/enable-docker-ipv6.sh
+        # Don't run on codebuild because systemctl is not available
+        if: ${{ !contains(matrix.os, 'codebuild-ubuntu') }}
 
       # Disable automatic line ending conversion (again). On Windows, when we're
       # installing dependencies, something switches the git configuration directory or
