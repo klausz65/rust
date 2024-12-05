@@ -15,13 +15,13 @@ LL | }
    | - `y` dropped here while still borrowed
 
 error: lifetime may not live long enough
-  --> $DIR/const-match-pat-lifetime-err.rs:37:12
+  --> $DIR/const-match-pat-lifetime-err.rs:39:17
    |
 LL | fn match_covariant_ref<'a>() {
    |                        -- lifetime `'a` defined here
 ...
-LL |     let y: (CovariantRef<'static, _>,) = (CovariantRef(&()),);
-   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ type annotation requires that `'a` must outlive `'static`
+LL |         const { CovariantRef::<'a>::NEW } => (),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^ using this value as a constant requires that `'a` must outlive `'static`
 
 error: aborting due to 2 previous errors
 

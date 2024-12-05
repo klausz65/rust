@@ -2027,7 +2027,14 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         // most likely to be the point where the value escapes -- but
         // we still want to screen for an "interesting" point to
         // highlight (e.g., a call site or something).
-        let target_scc = self.constraint_sccs.scc(target_region);
+        // As a special case, if the target region is 'static, it will always outlive the source,
+        // so they'll be in the same SCC. To get better diagnostics, we pretend those `'static: R`
+        // edges don't exist and use the resulting graph's SCCs.
+        let target_is_static = target_region == self.universal_regions().fr_static;
+        let sccs_without_static = target_is_static
+            .then(|| self.constraints.compute_sccs(RegionVid::MAX, &self.definitions));
+        let constraint_sccs = sccs_without_static.as_ref().unwrap_or(&self.constraint_sccs);
+        let target_scc = constraint_sccs.scc(target_region);
         let mut range = 0..path.len();
 
         // As noted above, when reporting an error, there is typically a chain of constraints
@@ -2075,7 +2082,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         let find_region = |i: &usize| {
             let constraint = &path[*i];
 
-            let constraint_sup_scc = self.constraint_sccs.scc(constraint.sup);
+            let constraint_sup_scc = constraint_sccs.scc(constraint.sup);
 
             if blame_source {
                 match categorized_path[*i].category {
@@ -2133,17 +2140,38 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                 }
             }
 
+            // If an "outlives 'static" constraint was from use as a const or static, blame that.
+            if target_is_static
+                && blame_source
+                && let Some(old_best) = categorized_path.iter().min_by_key(|p| p.category)
+                && matches!(
+                    old_best.category,
+                    ConstraintCategory::UseAsConst
+                        | ConstraintCategory::UseAsStatic
+                        | ConstraintCategory::Cast {
+                            is_implicit_coercion: true,
+                            unsize_to: Some(_)
+                        }
+                )
+            {
+                // FIXME(dianne): `BorrowExplanation::add_object_lifetime_default_note` depends on a
+                // coercion being blamed, so revert to the old blaming logic to prioritize that.
+                // The note's logic should be reworked, though; it's flaky (#131008 doesn't have a
+                // coercion, and even with this hack, one isn't always blamed when present).
+                // Only checking for a coercion also makes the note appear where it shouldn't
+                // shouldn't (e.g. `tests/ui/borrowck/two-phase-surprise-no-conflict.stderr`).
+                return (old_best.clone(), extra_info);
+            }
+
             return (categorized_path[i].clone(), extra_info);
         }
 
-        // If that search fails, that is.. unusual. Maybe everything
-        // is in the same SCC or something. In that case, find what
-        // appears to be the most interesting point to report to the
-        // user via an even more ad-hoc guess.
-        categorized_path.sort_by_key(|p| p.category);
-        debug!("sorted_path={:#?}", categorized_path);
+        // If that search fails, everything may be in the same SCC. In particular, this will be the
+        // case when dealing with invariant lifetimes. Find what appears to be the most interesting
+        // point to report to the user via an even more ad-hoc guess.
+        let best_choice = categorized_path.into_iter().min_by_key(|p| p.category).unwrap();
 
-        (categorized_path.remove(0), extra_info)
+        (best_choice, extra_info)
     }
 
     pub(crate) fn universe_info(&self, universe: ty::UniverseIndex) -> UniverseInfo<'tcx> {

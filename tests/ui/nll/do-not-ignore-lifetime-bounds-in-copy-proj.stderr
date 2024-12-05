@@ -4,10 +4,11 @@ error[E0597]: `s` does not live long enough
 LL |     let s = 2;
    |         - binding `s` declared here
 LL |     let a = (Foo(&s),);
-   |                  ^^ borrowed value does not live long enough
-LL |     drop(a.0);
-   |          --- copying this value requires that `s` is borrowed for `'static`
-LL |     drop(a.0);
+   |             -----^^---
+   |             |    |
+   |             |    borrowed value does not live long enough
+   |             assignment requires that `s` is borrowed for `'static`
+...
 LL | }
    | - `s` dropped here while still borrowed
 
