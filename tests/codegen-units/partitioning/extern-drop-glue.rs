@@ -2,7 +2,7 @@
 // We specify opt-level=0 because `drop_in_place` is `Internal` when optimizing
 //@ incremental
 //@ compile-flags:-Zprint-mono-items=lazy
-//@ compile-flags:-Zinline-in-all-cgus -Copt-level=0
+//@ compile-flags:-Copt-level=0
 
 #![allow(dead_code)]
 #![crate_type = "rlib"]

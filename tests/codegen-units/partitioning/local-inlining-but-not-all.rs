@@ -1,7 +1,6 @@
 // We specify incremental here because we want to test the partitioning for incremental compilation
 //@ incremental
-//@ compile-flags:-Zprint-mono-items=lazy
-//@ compile-flags:-Zinline-in-all-cgus=no
+//@ compile-flags:-Zprint-mono-items=lazy -Copt-level=0
 
 #![allow(dead_code)]
 #![crate_type = "lib"]

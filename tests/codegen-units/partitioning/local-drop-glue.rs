@@ -2,7 +2,7 @@
 // We specify opt-level=0 because `drop_in_place` is `Internal` when optimizing
 //@ incremental
 //@ compile-flags:-Zprint-mono-items=lazy
-//@ compile-flags:-Zinline-in-all-cgus -Copt-level=0
+//@ compile-flags:-Copt-level=0
 
 #![allow(dead_code)]
 #![crate_type = "rlib"]
@@ -33,7 +33,7 @@ pub mod mod1 {
     //~ MONO_ITEM fn std::ptr::drop_in_place::<mod1::Struct2> - shim(Some(mod1::Struct2)) @@ local_drop_glue-fallback.cgu[External]
     struct Struct2 {
         _a: Struct,
-        //~ MONO_ITEM fn std::ptr::drop_in_place::<(u32, Struct)> - shim(Some((u32, Struct))) @@ local_drop_glue-fallback.cgu[Internal]
+        //~ MONO_ITEM fn std::ptr::drop_in_place::<(u32, Struct)> - shim(Some((u32, Struct))) @@ local_drop_glue-fallback.cgu[External]
         _b: (u32, Struct),
     }
 
