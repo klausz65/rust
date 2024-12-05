@@ -1053,13 +1053,13 @@ where
         let bytes = str.as_bytes();
         let ptr = self.allocate_bytes(bytes, Align::ONE, kind, mutbl)?;
 
-        // Create length metadata for the string
+        // Create length metadata for the string.
         let meta = Scalar::from_target_usize(u64::try_from(bytes.len()).unwrap(), self);
 
-        // Get layout for Rust's str type
+        // Get layout for Rust's str type.
         let layout = self.layout_of(self.tcx.types.str_).unwrap();
 
-        // Combine pointer and metadata into a wide pointer
+        // Combine pointer and metadata into a wide pointer.
         interp_ok(self.ptr_with_meta_to_mplace(
             ptr.into(),
             MemPlaceMeta::Meta(meta),
