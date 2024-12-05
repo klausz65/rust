@@ -639,6 +639,7 @@ pub(super) fn collect_return_position_impl_trait_in_trait_tys<'tcx>(
                 }))),
                 terr,
                 false,
+                None,
             );
             return Err(diag.emit());
         }
@@ -1060,6 +1061,7 @@ fn report_trait_method_mismatch<'tcx>(
         }))),
         terr,
         false,
+        None,
     );
 
     diag.emit()
@@ -1852,6 +1854,7 @@ fn compare_const_predicate_entailment<'tcx>(
             }))),
             terr,
             false,
+            None,
         );
         return Err(diag.emit());
     };

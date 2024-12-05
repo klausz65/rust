@@ -1120,6 +1120,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                                 Some(self.param_env.and(trace.values)),
                                 e,
                                 true,
+                                None,
                             );
                         }
                     }
