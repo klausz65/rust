@@ -5,5 +5,6 @@ mod not_a_real_file; //~ ERROR file not found for module `not_a_real_file`
 
 fn main() {
     assert_eq!(mod_file_aux::bar(), 10);
-    //~^ ERROR failed to resolve: use of undeclared crate or module `mod_file_aux`
+    //~^ ERROR failed to resolve: use of unresolved module or unlinked crate `mod_file_aux`
+    //~| HELP if you wanted to use a crate named `mod_file_aux`, use `cargo add mod_file_aux` to add it to your `Cargo.toml`
 }

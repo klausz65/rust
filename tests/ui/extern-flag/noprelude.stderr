@@ -1,8 +1,10 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `somedep`
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `somedep`
   --> $DIR/noprelude.rs:6:5
    |
 LL |     somedep::somefun();
-   |     ^^^^^^^ use of undeclared crate or module `somedep`
+   |     ^^^^^^^ use of unresolved module or unlinked crate `somedep`
+   |
+   = help: if you wanted to use a crate named `somedep`, use `cargo add somedep` to add it to your `Cargo.toml`
 
 error: aborting due to 1 previous error
 

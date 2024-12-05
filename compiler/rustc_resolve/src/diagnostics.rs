@@ -810,7 +810,6 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     }
                     err.multipart_suggestion(msg, suggestions, applicability);
                 }
-
                 if let Some(ModuleOrUniformRoot::Module(module)) = module
                     && let Some(module) = module.opt_def_id()
                     && let Some(segment) = segment
@@ -2041,13 +2040,16 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 (format!("`_` is not a valid crate or module name"), None)
             } else if self.tcx.sess.is_rust_2015() {
                 (
-                    format!("you might be missing crate `{ident}`"),
+                    format!("use of unresolved module or unlinked crate `{ident}`"),
                     Some((
                         vec![(
                             self.current_crate_outer_attr_insert_span,
                             format!("extern crate {ident};\n"),
                         )],
-                        format!("consider importing the `{ident}` crate"),
+                        format!(
+                            "if you wanted to use a crate named `{ident}`, use `cargo add {ident}` \
+                            to add it to your `Cargo.toml` and import it in your code",
+                        ),
                         Applicability::MaybeIncorrect,
                     )),
                 )
@@ -2226,7 +2228,15 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 let descr = binding.res().descr();
                 (format!("{descr} `{ident}` is not a crate or module"), suggestion)
             } else {
-                (format!("use of undeclared crate or module `{ident}`"), suggestion)
+                let suggestion = suggestion.or(Some((
+                    vec![],
+                    format!(
+                        "if you wanted to use a crate named `{ident}`, use `cargo add {ident}` to \
+                         add it to your `Cargo.toml`",
+                    ),
+                    Applicability::MaybeIncorrect,
+                )));
+                (format!("use of unresolved module or unlinked crate `{ident}`"), suggestion)
             }
         }
     }

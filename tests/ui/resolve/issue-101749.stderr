@@ -1,9 +1,10 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `rect`
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `rect`
   --> $DIR/issue-101749.rs:17:13
    |
 LL |     let _ = rect::area();
-   |             ^^^^ use of undeclared crate or module `rect`
+   |             ^^^^ use of unresolved module or unlinked crate `rect`
    |
+   = help: if you wanted to use a crate named `rect`, use `cargo add rect` to add it to your `Cargo.toml`
 help: you may have meant to call an instance method
    |
 LL |     let _ = rect.area();

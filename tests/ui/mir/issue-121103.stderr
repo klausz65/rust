@@ -1,14 +1,18 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `lib2`
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `lib2`
   --> $DIR/issue-121103.rs:1:38
    |
 LL | fn main(_: <lib2::GenericType<42> as lib2::TypeFn>::Output) {}
-   |                                      ^^^^ use of undeclared crate or module `lib2`
+   |                                      ^^^^ use of unresolved module or unlinked crate `lib2`
+   |
+   = help: if you wanted to use a crate named `lib2`, use `cargo add lib2` to add it to your `Cargo.toml`
 
-error[E0433]: failed to resolve: use of undeclared crate or module `lib2`
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `lib2`
   --> $DIR/issue-121103.rs:1:13
    |
 LL | fn main(_: <lib2::GenericType<42> as lib2::TypeFn>::Output) {}
-   |             ^^^^ use of undeclared crate or module `lib2`
+   |             ^^^^ use of unresolved module or unlinked crate `lib2`
+   |
+   = help: if you wanted to use a crate named `lib2`, use `cargo add lib2` to add it to your `Cargo.toml`
 
 error: aborting due to 2 previous errors
 
