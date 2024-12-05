@@ -511,3 +511,65 @@ pub const fn black_box<T>(dummy: T) -> T {
 pub const fn must_use<T>(value: T) -> T {
     value
 }
+
+/// Hints to the compiler that branch condition is likely to be true.
+/// Returns the value passed to it.
+///
+/// It can be used with `if` or boolean `match` expressions.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(likely_unlikely)]
+/// use core::hint::likely;
+///
+/// fn foo(x: i32) {
+///     if likely(x > 0) {
+///         println!("this branch is likely to be taken");
+///     } else {
+///         println!("this branch is unlikely to be taken");
+///     }
+///
+///     match likely(x > 0) {
+///         true => println!("this branch is likely to be taken"),
+///         false => println!("this branch is unlikely to be taken"),
+///     }
+/// }
+/// ```
+#[unstable(feature = "likely_unlikely", issue = "26179")]
+#[rustc_nounwind]
+#[inline(always)]
+pub const fn likely(b: bool) -> bool {
+    crate::intrinsics::likely(b)
+}
+
+/// Hints to the compiler that the branch condition is unlikely to be true.
+/// Returns the value passed to it.
+///
+/// It can be used with `if` or boolean `match` expressions.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(likely_unlikely)]
+/// use core::hint::unlikely;
+///
+/// fn foo(x: i32) {
+///     if unlikely(x > 0) {
+///         println!("this branch is unlikely to be taken");
+///     } else {
+///         println!("this branch is likely to be taken");
+///     }
+///
+///     match unlikely(x > 0) {
+///         true => println!("this branch is unlikely to be taken"),
+///         false => println!("this branch is likely to be taken"),
+///     }
+/// }
+/// ```
+#[unstable(feature = "likely_unlikely", issue = "26179")]
+#[rustc_nounwind]
+#[inline(always)]
+pub const fn unlikely(b: bool) -> bool {
+    crate::intrinsics::unlikely(b)
+}
