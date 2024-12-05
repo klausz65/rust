@@ -1034,7 +1034,7 @@ where
             let salt = M::get_global_alloc_salt(self, None);
             let id = self.tcx.allocate_bytes_dedup(bytes, salt);
 
-            // Transform allocation ID to a machine-specific pointer with proper provenance
+            // Turn untagged "global" pointers (obtained via `tcx`) into the machine pointer to the allocation.
             M::adjust_alloc_root_pointer(&self, Pointer::from(id), Some(kind))
         } else {
             // Allocate new memory for mutable data
