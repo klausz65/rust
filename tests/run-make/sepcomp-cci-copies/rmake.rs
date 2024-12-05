@@ -8,7 +8,13 @@ use run_make_support::{count_regex_matches_in_files_with_extension, regex, rustc
 
 fn main() {
     rustc().input("cci_lib.rs").run();
-    rustc().input("foo.rs").emit("llvm-ir").codegen_units(6).arg("-O").arg("-Cno-prepopulate-passes").run();
+    rustc()
+        .input("foo.rs")
+        .emit("llvm-ir")
+        .codegen_units(6)
+        .arg("-O")
+        .arg("-Cno-prepopulate-passes")
+        .run();
     let re = regex::Regex::new(r#"define\ .*cci_fn"#).unwrap();
     assert_eq!(count_regex_matches_in_files_with_extension(&re, "ll"), 2);
 }
