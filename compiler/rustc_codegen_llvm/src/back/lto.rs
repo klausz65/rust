@@ -3,6 +3,7 @@ use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::mem::ManuallyDrop;
 use std::path::Path;
+use std::ptr::NonNull;
 use std::sync::Arc;
 use std::{io, iter, slice};
 
@@ -604,7 +605,7 @@ pub(crate) fn run_pass_manager(
     debug!("running the pass manager");
     let opt_stage = if thin { llvm::OptStage::ThinLTO } else { llvm::OptStage::FatLTO };
     let opt_level = config.opt_level.unwrap_or(config::OptLevel::No);
-    unsafe { write::llvm_optimize(cgcx, dcx, module, config, opt_level, opt_stage) }?;
+    unsafe { write::llvm_optimize(cgcx, dcx, module, None, config, opt_level, opt_stage) }?;
     debug!("lto done");
     Ok(())
 }
@@ -662,6 +663,11 @@ impl ThinBuffer {
             let buffer = llvm::LLVMRustThinLTOBufferCreate(m, is_thin, emit_summary);
             ThinBuffer(buffer)
         }
+    }
+
+    pub unsafe fn from_raw_ptr(ptr: *mut llvm::ThinLTOBuffer) -> ThinBuffer {
+        let mut ptr = NonNull::new(ptr).unwrap();
+        ThinBuffer(unsafe { ptr.as_mut() })
     }
 }
 
