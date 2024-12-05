@@ -45,7 +45,8 @@ use crate::mir::operand::OperandValue;
 use crate::mir::place::PlaceRef;
 use crate::traits::*;
 use crate::{
-    CachedModuleCodegen, CompiledModule, CrateInfo, ModuleCodegen, ModuleKind, errors, meth, mir,
+    CachedModuleCodegen, CodegenLintLevels, CompiledModule, CrateInfo, ModuleCodegen, ModuleKind,
+    errors, meth, mir,
 };
 
 pub(crate) fn bin_op_to_icmp_predicate(op: BinOp, signed: bool) -> IntPredicate {
@@ -926,6 +927,7 @@ impl CrateInfo {
             dependency_formats: Lrc::clone(tcx.dependency_formats(())),
             windows_subsystem,
             natvis_debugger_visualizers: Default::default(),
+            lint_levels: CodegenLintLevels::from_tcx(tcx),
         };
 
         info.native_libraries.reserve(n_crates);
