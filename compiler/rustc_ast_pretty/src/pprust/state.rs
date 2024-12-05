@@ -1117,9 +1117,9 @@ impl<'a> State<'a> {
         self.commasep_cmnt(b, exprs, |s, e| s.print_expr(e, FixupContext::default()), |e| e.span)
     }
 
-    pub fn print_opt_lifetime(&mut self, lifetime: &Option<ast::Lifetime>) {
-        if let Some(lt) = *lifetime {
-            self.print_lifetime(lt);
+    pub fn print_opt_lifetime(&mut self, lifetime: Option<&ast::Lifetime>) {
+        if let Some(lt) = lifetime {
+            self.print_lifetime(*lt);
             self.nbsp();
         }
     }
@@ -1170,12 +1170,12 @@ impl<'a> State<'a> {
             }
             ast::TyKind::Ref(lifetime, mt) => {
                 self.word("&");
-                self.print_opt_lifetime(lifetime);
+                self.print_opt_lifetime(lifetime.as_ref());
                 self.print_mt(mt, false);
             }
             ast::TyKind::PinnedRef(lifetime, mt) => {
                 self.word("&");
-                self.print_opt_lifetime(lifetime);
+                self.print_opt_lifetime(lifetime.as_ref());
                 self.word("pin ");
                 self.print_mt(mt, true);
             }
@@ -1738,7 +1738,7 @@ impl<'a> State<'a> {
             }
             SelfKind::Region(lt, m) => {
                 self.word("&");
-                self.print_opt_lifetime(lt);
+                self.print_opt_lifetime(lt.as_ref());
                 self.print_mutability(*m, false);
                 self.word("self")
             }

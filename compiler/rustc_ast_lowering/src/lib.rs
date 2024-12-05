@@ -1117,7 +1117,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
     fn lower_path_ty(
         &mut self,
         t: &Ty,
-        qself: &Option<ptr::P<QSelf>>,
+        qself: Option<&ptr::P<QSelf>>,
         path: &Path,
         param_mode: ParamMode,
         itctx: ImplTraitContext,
@@ -1236,7 +1236,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 return self.lower_ty_direct(ty, itctx);
             }
             TyKind::Path(qself, path) => {
-                return self.lower_path_ty(t, qself, path, ParamMode::Explicit, itctx);
+                return self.lower_path_ty(t, qself.as_ref(), path, ParamMode::Explicit, itctx);
             }
             TyKind::ImplicitSelf => {
                 let hir_id = self.next_id();
@@ -1897,7 +1897,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
     ) -> hir::TraitRef<'hir> {
         let path = match self.lower_qpath(
             p.ref_id,
-            &None,
+            None,
             &p.path,
             ParamMode::Explicit,
             AllowReturnTypeNotation::No,
@@ -2048,7 +2048,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         {
             let qpath = self.lower_qpath(
                 ty_id,
-                &None,
+                None,
                 path,
                 ParamMode::Optional,
                 AllowReturnTypeNotation::No,
@@ -2124,7 +2124,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         {
             let qpath = self.lower_qpath(
                 expr.id,
-                &None,
+                None,
                 path,
                 ParamMode::Optional,
                 AllowReturnTypeNotation::No,

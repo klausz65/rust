@@ -220,11 +220,18 @@ fn do_mir_borrowck<'tcx>(
 
     // Dump MIR results into a file, if that is enabled. This let us
     // write unit-tests, as well as helping with debugging.
-    nll::dump_nll_mir(&infcx, body, &regioncx, &opt_closure_req, &borrow_set);
+    nll::dump_nll_mir(&infcx, body, &regioncx, opt_closure_req.as_ref(), &borrow_set);
 
     // We also have a `#[rustc_regions]` annotation that causes us to dump
     // information.
-    nll::dump_annotation(&infcx, body, &regioncx, &opt_closure_req, &opaque_type_values, diags);
+    nll::dump_annotation(
+        &infcx,
+        body,
+        &regioncx,
+        opt_closure_req.as_ref(),
+        &opaque_type_values,
+        diags,
+    );
 
     let movable_coroutine =
         // The first argument is the coroutine type passed by value
