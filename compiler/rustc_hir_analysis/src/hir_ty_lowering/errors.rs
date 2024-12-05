@@ -12,7 +12,7 @@ use rustc_middle::bug;
 use rustc_middle::query::Key;
 use rustc_middle::ty::print::{PrintPolyTraitRefExt as _, PrintTraitRefExt as _};
 use rustc_middle::ty::{
-    self, AdtDef, Binder, GenericParamDefKind, TraitRef, Ty, TyCtxt, TypeVisitableExt,
+    self, AdtDef, GenericParamDefKind, Ty, TyCtxt, TypeVisitableExt,
     suggest_constraining_type_param,
 };
 use rustc_session::parse::feature_err;
@@ -21,8 +21,9 @@ use rustc_span::symbol::{Ident, kw, sym};
 use rustc_span::{BytePos, DUMMY_SP, Span, Symbol};
 use rustc_trait_selection::error_reporting::traits::report_dyn_incompatibility;
 use rustc_trait_selection::traits::{
-    FulfillmentError, TraitAliasExpansionInfo, dyn_compatibility_violations_for_assoc_item,
+    FulfillmentError, dyn_compatibility_violations_for_assoc_item,
 };
+use smallvec::SmallVec;
 
 use crate::errors::{
     self, AssocItemConstraintsNotAllowedHere, ManualImplementation, MissingTypeParams,
@@ -716,51 +717,42 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
     /// emit a generic note suggesting using a `where` clause to constraint instead.
     pub(crate) fn check_for_required_assoc_tys(
         &self,
-        associated_types: FxIndexMap<Span, FxIndexSet<DefId>>,
+        spans: SmallVec<[Span; 1]>,
+        missing_assoc_types: FxIndexSet<DefId>,
         potential_assoc_types: Vec<usize>,
         trait_bounds: &[hir::PolyTraitRef<'_>],
     ) -> Result<(), ErrorGuaranteed> {
-        if associated_types.values().all(|v| v.is_empty()) {
+        if missing_assoc_types.is_empty() {
             return Ok(());
         }
 
+        let principal_span = *spans.first().unwrap();
+
         let tcx = self.tcx();
-        // FIXME: Marked `mut` so that we can replace the spans further below with a more
-        // appropriate one, but this should be handled earlier in the span assignment.
-        let associated_types: FxIndexMap<Span, Vec<_>> = associated_types
-            .into_iter()
-            .map(|(span, def_ids)| {
-                (span, def_ids.into_iter().map(|did| tcx.associated_item(did)).collect())
-            })
-            .collect();
+        let missing_assoc_types: Vec<_> =
+            missing_assoc_types.into_iter().map(|def_id| tcx.associated_item(def_id)).collect();
         let mut names: FxIndexMap<String, Vec<Symbol>> = Default::default();
         let mut names_len = 0;
 
         // Account for things like `dyn Foo + 'a`, like in tests `issue-22434.rs` and
         // `issue-22560.rs`.
-        let mut trait_bound_spans: Vec<Span> = vec![];
         let mut dyn_compatibility_violations = Ok(());
-        for (span, items) in &associated_types {
-            if !items.is_empty() {
-                trait_bound_spans.push(*span);
-            }
-            for assoc_item in items {
-                let trait_def_id = assoc_item.container_id(tcx);
-                names.entry(tcx.def_path_str(trait_def_id)).or_default().push(assoc_item.name);
-                names_len += 1;
+        for assoc_item in &missing_assoc_types {
+            let trait_def_id = assoc_item.container_id(tcx);
+            names.entry(tcx.def_path_str(trait_def_id)).or_default().push(assoc_item.name);
+            names_len += 1;
 
-                let violations =
-                    dyn_compatibility_violations_for_assoc_item(tcx, trait_def_id, *assoc_item);
-                if !violations.is_empty() {
-                    dyn_compatibility_violations = Err(report_dyn_incompatibility(
-                        tcx,
-                        *span,
-                        None,
-                        trait_def_id,
-                        &violations,
-                    )
-                    .emit());
-                }
+            let violations =
+                dyn_compatibility_violations_for_assoc_item(tcx, trait_def_id, *assoc_item);
+            if !violations.is_empty() {
+                dyn_compatibility_violations = Err(report_dyn_incompatibility(
+                    tcx,
+                    principal_span,
+                    None,
+                    trait_def_id,
+                    &violations,
+                )
+                .emit());
             }
         }
 
@@ -821,10 +813,9 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         names.sort();
         let names = names.join(", ");
 
-        trait_bound_spans.sort();
         let mut err = struct_span_code_err!(
             self.dcx(),
-            trait_bound_spans,
+            principal_span,
             E0191,
             "the value of the associated type{} {} must be specified",
             pluralize!(names_len),
@@ -834,81 +825,81 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         let mut types_count = 0;
         let mut where_constraints = vec![];
         let mut already_has_generics_args_suggestion = false;
-        for (span, assoc_items) in &associated_types {
-            let mut names: UnordMap<_, usize> = Default::default();
-            for item in assoc_items {
-                types_count += 1;
-                *names.entry(item.name).or_insert(0) += 1;
-            }
-            let mut dupes = false;
-            let mut shadows = false;
-            for item in assoc_items {
-                let prefix = if names[&item.name] > 1 {
-                    let trait_def_id = item.container_id(tcx);
-                    dupes = true;
-                    format!("{}::", tcx.def_path_str(trait_def_id))
-                } else if bound_names.get(&item.name).is_some_and(|x| x != &item) {
-                    let trait_def_id = item.container_id(tcx);
-                    shadows = true;
-                    format!("{}::", tcx.def_path_str(trait_def_id))
-                } else {
-                    String::new()
-                };
 
-                let mut is_shadowed = false;
+        let mut names: UnordMap<_, usize> = Default::default();
+        for item in &missing_assoc_types {
+            types_count += 1;
+            *names.entry(item.name).or_insert(0) += 1;
+        }
+        let mut dupes = false;
+        let mut shadows = false;
+        for item in &missing_assoc_types {
+            let prefix = if names[&item.name] > 1 {
+                let trait_def_id = item.container_id(tcx);
+                dupes = true;
+                format!("{}::", tcx.def_path_str(trait_def_id))
+            } else if bound_names.get(&item.name).is_some_and(|x| *x != item) {
+                let trait_def_id = item.container_id(tcx);
+                shadows = true;
+                format!("{}::", tcx.def_path_str(trait_def_id))
+            } else {
+                String::new()
+            };
 
-                if let Some(assoc_item) = bound_names.get(&item.name)
-                    && assoc_item != &item
-                {
-                    is_shadowed = true;
+            let mut is_shadowed = false;
 
-                    let rename_message =
-                        if assoc_item.def_id.is_local() { ", consider renaming it" } else { "" };
-                    err.span_label(
-                        tcx.def_span(assoc_item.def_id),
-                        format!("`{}{}` shadowed here{}", prefix, item.name, rename_message),
-                    );
-                }
-
-                let rename_message = if is_shadowed { ", consider renaming it" } else { "" };
-
-                if let Some(sp) = tcx.hir().span_if_local(item.def_id) {
-                    err.span_label(
-                        sp,
-                        format!("`{}{}` defined here{}", prefix, item.name, rename_message),
-                    );
-                }
-            }
-            if potential_assoc_types.len() == assoc_items.len() {
-                // When the amount of missing associated types equals the number of
-                // extra type arguments present. A suggesting to replace the generic args with
-                // associated types is already emitted.
-                already_has_generics_args_suggestion = true;
-            } else if let (Ok(snippet), false, false) =
-                (tcx.sess.source_map().span_to_snippet(*span), dupes, shadows)
+            if let Some(assoc_item) = bound_names.get(&item.name)
+                && *assoc_item != item
             {
-                let types: Vec<_> =
-                    assoc_items.iter().map(|item| format!("{} = Type", item.name)).collect();
-                let code = if snippet.ends_with('>') {
-                    // The user wrote `Trait<'a>` or similar and we don't have a type we can
-                    // suggest, but at least we can clue them to the correct syntax
-                    // `Trait<'a, Item = Type>` while accounting for the `<'a>` in the
-                    // suggestion.
-                    format!("{}, {}>", &snippet[..snippet.len() - 1], types.join(", "))
-                } else if in_expr_or_pat {
-                    // The user wrote `Iterator`, so we don't have a type we can suggest, but at
-                    // least we can clue them to the correct syntax `Iterator::<Item = Type>`.
-                    format!("{}::<{}>", snippet, types.join(", "))
-                } else {
-                    // The user wrote `Iterator`, so we don't have a type we can suggest, but at
-                    // least we can clue them to the correct syntax `Iterator<Item = Type>`.
-                    format!("{}<{}>", snippet, types.join(", "))
-                };
-                suggestions.push((*span, code));
-            } else if dupes {
-                where_constraints.push(*span);
+                is_shadowed = true;
+
+                let rename_message =
+                    if assoc_item.def_id.is_local() { ", consider renaming it" } else { "" };
+                err.span_label(
+                    tcx.def_span(assoc_item.def_id),
+                    format!("`{}{}` shadowed here{}", prefix, item.name, rename_message),
+                );
+            }
+
+            let rename_message = if is_shadowed { ", consider renaming it" } else { "" };
+
+            if let Some(sp) = tcx.hir().span_if_local(item.def_id) {
+                err.span_label(
+                    sp,
+                    format!("`{}{}` defined here{}", prefix, item.name, rename_message),
+                );
             }
         }
+        if potential_assoc_types.len() == missing_assoc_types.len() {
+            // When the amount of missing associated types equals the number of
+            // extra type arguments present. A suggesting to replace the generic args with
+            // associated types is already emitted.
+            already_has_generics_args_suggestion = true;
+        } else if let (Ok(snippet), false, false) =
+            (tcx.sess.source_map().span_to_snippet(principal_span), dupes, shadows)
+        {
+            let types: Vec<_> =
+                missing_assoc_types.iter().map(|item| format!("{} = Type", item.name)).collect();
+            let code = if snippet.ends_with('>') {
+                // The user wrote `Trait<'a>` or similar and we don't have a type we can
+                // suggest, but at least we can clue them to the correct syntax
+                // `Trait<'a, Item = Type>` while accounting for the `<'a>` in the
+                // suggestion.
+                format!("{}, {}>", &snippet[..snippet.len() - 1], types.join(", "))
+            } else if in_expr_or_pat {
+                // The user wrote `Iterator`, so we don't have a type we can suggest, but at
+                // least we can clue them to the correct syntax `Iterator::<Item = Type>`.
+                format!("{}::<{}>", snippet, types.join(", "))
+            } else {
+                // The user wrote `Iterator`, so we don't have a type we can suggest, but at
+                // least we can clue them to the correct syntax `Iterator<Item = Type>`.
+                format!("{}<{}>", snippet, types.join(", "))
+            };
+            suggestions.push((principal_span, code));
+        } else if dupes {
+            where_constraints.push(principal_span);
+        }
+
         let where_msg = "consider introducing a new type parameter, adding `where` constraints \
                          using the fully-qualified path to the associated types";
         if !where_constraints.is_empty() && suggestions.is_empty() {
@@ -919,32 +910,30 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         }
         if suggestions.len() != 1 || already_has_generics_args_suggestion {
             // We don't need this label if there's an inline suggestion, show otherwise.
-            for (span, assoc_items) in &associated_types {
-                let mut names: FxIndexMap<_, usize> = FxIndexMap::default();
-                for item in assoc_items {
-                    types_count += 1;
-                    *names.entry(item.name).or_insert(0) += 1;
-                }
-                let mut label = vec![];
-                for item in assoc_items {
-                    let postfix = if names[&item.name] > 1 {
-                        let trait_def_id = item.container_id(tcx);
-                        format!(" (from trait `{}`)", tcx.def_path_str(trait_def_id))
-                    } else {
-                        String::new()
-                    };
-                    label.push(format!("`{}`{}", item.name, postfix));
-                }
-                if !label.is_empty() {
-                    err.span_label(
-                        *span,
-                        format!(
-                            "associated type{} {} must be specified",
-                            pluralize!(label.len()),
-                            label.join(", "),
-                        ),
-                    );
-                }
+            let mut names: FxIndexMap<_, usize> = FxIndexMap::default();
+            for item in &missing_assoc_types {
+                types_count += 1;
+                *names.entry(item.name).or_insert(0) += 1;
+            }
+            let mut label = vec![];
+            for item in &missing_assoc_types {
+                let postfix = if names[&item.name] > 1 {
+                    let trait_def_id = item.container_id(tcx);
+                    format!(" (from trait `{}`)", tcx.def_path_str(trait_def_id))
+                } else {
+                    String::new()
+                };
+                label.push(format!("`{}`{}", item.name, postfix));
+            }
+            if !label.is_empty() {
+                err.span_label(
+                    principal_span,
+                    format!(
+                        "associated type{} {} must be specified",
+                        pluralize!(label.len()),
+                        label.join(", "),
+                    ),
+                );
             }
         }
         suggestions.sort_by_key(|&(span, _)| span);
@@ -1130,29 +1119,34 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
 
     pub fn report_trait_object_addition_traits_error(
         &self,
-        regular_traits: &Vec<TraitAliasExpansionInfo<'_>>,
+        regular_traits: &Vec<(ty::PolyTraitPredicate<'tcx>, SmallVec<[Span; 1]>)>,
     ) -> ErrorGuaranteed {
-        let first_trait = &regular_traits[0];
-        let additional_trait = &regular_traits[1];
+        let (&first_span, first_alias_spans) = regular_traits[0].1.split_last().unwrap();
+        let (&second_span, second_alias_spans) = regular_traits[1].1.split_last().unwrap();
         let mut err = struct_span_code_err!(
             self.dcx(),
-            additional_trait.bottom().1,
+            *regular_traits[1].1.first().unwrap(),
             E0225,
             "only auto traits can be used as additional traits in a trait object"
         );
-        additional_trait.label_with_exp_info(
-            &mut err,
-            "additional non-auto trait",
-            "additional use",
-        );
-        first_trait.label_with_exp_info(&mut err, "first non-auto trait", "first use");
+        err.span_label(first_span, "first non-auto trait");
+        for &alias_span in first_alias_spans {
+            err.span_label(alias_span, "first non-auto trait comes from this alias");
+        }
+        err.span_label(second_span, "additional non-auto trait");
+        for &alias_span in second_alias_spans {
+            err.span_label(alias_span, "second non-auto trait comes from this alias");
+        }
         err.help(format!(
             "consider creating a new trait with all of these as supertraits and using that \
              trait here instead: `trait NewTrait: {} {{}}`",
             regular_traits
                 .iter()
                 // FIXME: This should `print_sugared`, but also needs to integrate projection bounds...
-                .map(|t| t.trait_ref().print_only_trait_path().to_string())
+                .map(|(pred, _)| pred
+                    .map_bound(|pred| pred.trait_ref)
+                    .print_only_trait_path()
+                    .to_string())
                 .collect::<Vec<_>>()
                 .join(" + "),
         ));
@@ -1167,14 +1161,14 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
     pub fn report_trait_object_with_no_traits_error(
         &self,
         span: Span,
-        trait_bounds: &Vec<(Binder<'tcx, TraitRef<'tcx>>, Span)>,
+        user_written_clauses: impl IntoIterator<Item = (ty::Clause<'tcx>, Span)>,
     ) -> ErrorGuaranteed {
         let tcx = self.tcx();
-        let trait_alias_span = trait_bounds
-            .iter()
-            .map(|&(trait_ref, _)| trait_ref.def_id())
-            .find(|&trait_ref| tcx.is_trait_alias(trait_ref))
-            .map(|trait_ref| tcx.def_span(trait_ref));
+        let trait_alias_span = user_written_clauses
+            .into_iter()
+            .filter_map(|(clause, _)| clause.as_trait_clause())
+            .find(|trait_ref| tcx.is_trait_alias(trait_ref.def_id()))
+            .map(|trait_ref| tcx.def_span(trait_ref.def_id()));
 
         self.dcx().emit_err(TraitObjectDeclaredWithNoTraits { span, trait_alias_span })
     }
