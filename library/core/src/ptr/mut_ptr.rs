@@ -440,9 +440,11 @@ impl<T: ?Sized> *mut T {
     ///
     /// `count` is in units of **bytes**.
     ///
-    /// This is purely a convenience for casting to a `u8` pointer and
-    /// using [offset][pointer::offset] on it. See that method for documentation
-    /// and safety requirements.
+    /// This is purely a convenience for casting to a `u8` pointer and using
+    /// [offset][pointer::offset] on it. See that method for documentation and
+    /// safety requirements. Note that the usual guidance on operations on
+    /// zero-sized referents does not apply here — the only valid `count`s for
+    /// zero-sized referents is `0`.
     ///
     /// For non-`Sized` pointees this operation changes only the data pointer,
     /// leaving the metadata untouched.
@@ -1031,9 +1033,11 @@ impl<T: ?Sized> *mut T {
     ///
     /// `count` is in units of bytes.
     ///
-    /// This is purely a convenience for casting to a `u8` pointer and
-    /// using [add][pointer::add] on it. See that method for documentation
-    /// and safety requirements.
+    /// This is purely a convenience for casting to a `u8` pointer and using
+    /// [add][pointer::add] on it. See that method for documentation and safety
+    /// requirements. Note that the usual guidance on operations on zero-sized
+    /// referents does not apply here — the only valid `count`s for zero-sized
+    /// referents is `0`.
     ///
     /// For non-`Sized` pointees this operation changes only the data pointer,
     /// leaving the metadata untouched.
@@ -1143,9 +1147,11 @@ impl<T: ?Sized> *mut T {
     ///
     /// `count` is in units of bytes.
     ///
-    /// This is purely a convenience for casting to a `u8` pointer and
-    /// using [sub][pointer::sub] on it. See that method for documentation
-    /// and safety requirements.
+    /// This is purely a convenience for casting to a `u8` pointer and using
+    /// [sub][pointer::sub] on it. See that method for documentation and safety
+    /// requirements. Note that the usual guidance on operations on zero-sized
+    /// referents does not apply here — the only valid `count`s for zero-sized
+    /// referents is `0`.
     ///
     /// For non-`Sized` pointees this operation changes only the data pointer,
     /// leaving the metadata untouched.
