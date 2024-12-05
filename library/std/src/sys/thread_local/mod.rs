@@ -141,7 +141,7 @@ pub(crate) mod key {
             #[cfg(test)]
             mod tests;
             pub(super) use racy::LazyKey;
-            pub(super) use unix::{Key, set};
+            pub(super) use unix::{Key, set, at_process_exit};
             #[cfg(any(not(target_thread_local), test))]
             pub(super) use unix::get;
             use unix::{create, destroy};
@@ -156,7 +156,7 @@ pub(crate) mod key {
             #[cfg(test)]
             mod tests;
             pub(super) use racy::LazyKey;
-            pub(super) use sgx::{Key, get, set};
+            pub(super) use sgx::{Key, get, set, at_process_exit};
             use sgx::{create, destroy};
         } else if #[cfg(target_os = "xous")] {
             mod racy;
