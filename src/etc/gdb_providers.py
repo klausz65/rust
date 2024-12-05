@@ -180,12 +180,22 @@ class StdVecDequeProvider(printer_base):
     def display_hint():
         return "array"
 
+BYTE_PTR_TYPE = gdb.lookup_type("u8").pointer()
 
 class StdRcProvider(printer_base):
     def __init__(self, valobj, is_atomic=False):
+        def inner_ptr():
+            data_ptr = unwrap_unique_or_non_null(valobj["ptr"])
+            formatter = "alloc::sync::ArcInner<{}>" if is_atomic else "alloc::rc::RcInner<{}>"
+            inner_type = gdb.lookup_type(formatter.format(data_ptr.type.target().name))
+            data_offset = inner_type.fields()[-1].bitpos // 8
+            inner_ptr = data_ptr.reinterpret_cast(BYTE_PTR_TYPE) - data_offset
+
+            return inner_ptr.reinterpret_cast(inner_type.pointer())
+
         self._valobj = valobj
         self._is_atomic = is_atomic
-        self._ptr = unwrap_unique_or_non_null(valobj["ptr"])
+        self._ptr = inner_ptr()
         self._value = self._ptr["data" if is_atomic else "value"]
         self._strong = self._ptr["strong"]["v" if is_atomic else "value"]["value"]
         self._weak = self._ptr["weak"]["v" if is_atomic else "value"]["value"] - 1
