@@ -142,12 +142,16 @@ impl Thread {
         }
     }
 
-    #[cfg(any(
-        target_os = "freebsd",
-        target_os = "dragonfly",
-        target_os = "openbsd",
-        target_os = "nuttx"
-    ))]
+    #[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
+    pub fn set_name(name: &CStr) {
+        unsafe {
+            let res = libc::pthread_setname_np(libc::pthread_self(), name.as_ptr());
+            // We have no good way of propagating errors here, but in debug-builds let's check that this actually worked.
+            debug_assert_eq!(res, 0);
+        }
+    }
+
+    #[cfg(any(target_os = "openbsd", target_os = "nuttx"))]
     pub fn set_name(name: &CStr) {
         unsafe {
             libc::pthread_set_name_np(libc::pthread_self(), name.as_ptr());
