@@ -1027,22 +1027,19 @@ where
         align: Align,
         kind: MemoryKind<M::MemoryKind>,
         mutbl: Mutability,
-    ) -> InterpResult<'tcx, MPlaceTy<'tcx, M::Provenance>> {
-        let ptr = if mutbl.is_not() {
-            // Deduplicate immutable allocations using a salted hash
+    ) -> InterpResult<'tcx, Pointer<M::Provenance>> {
+        // Use cache for immutable strings.
+        if mutbl.is_not() {
+            // Use dedup'd allocation function.
             let salt = M::get_global_alloc_salt(self, None);
             let id = self.tcx.allocate_bytes_dedup(bytes, salt);
 
             // Transform allocation ID to a machine-specific pointer with proper provenance
-            M::adjust_alloc_root_pointer(&self, Pointer::from(id), Some(kind))?
+            M::adjust_alloc_root_pointer(&self, Pointer::from(id), Some(kind))
         } else {
             // Allocate new memory for mutable data
-            self.allocate_bytes_ptr(bytes, align, kind, mutbl)?
-        };
-
-        let layout = self.layout_of(self.tcx.types.u8).unwrap();
-
-        interp_ok(self.ptr_to_mplace(ptr.into(), layout))
+            self.allocate_bytes_ptr(bytes, align, kind, mutbl)
+        }
     }
 
     /// Allocates a string in the interpreter's memory with metadata for length.
@@ -1054,7 +1051,7 @@ where
         mutbl: Mutability,
     ) -> InterpResult<'tcx, MPlaceTy<'tcx, M::Provenance>> {
         let bytes = str.as_bytes();
-        let mplace_type = self.allocate_bytes(bytes, Align::ONE, kind, mutbl)?;
+        let ptr = self.allocate_bytes(bytes, Align::ONE, kind, mutbl)?;
 
         // Create length metadata for the string
         let meta = Scalar::from_target_usize(u64::try_from(bytes.len()).unwrap(), self);
@@ -1064,7 +1061,7 @@ where
 
         // Combine pointer and metadata into a wide pointer
         interp_ok(self.ptr_with_meta_to_mplace(
-            mplace_type.ptr().into(),
+            ptr.into(),
             MemPlaceMeta::Meta(meta),
             layout,
             /*unaligned*/ false,
