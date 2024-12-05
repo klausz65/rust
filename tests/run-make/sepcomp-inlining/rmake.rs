@@ -8,7 +8,7 @@
 use run_make_support::{count_regex_matches_in_files_with_extension, regex, rustc};
 
 fn main() {
-    rustc().input("foo.rs").emit("llvm-ir").codegen_units(3).arg("-Zinline-in-all-cgus").run();
+    rustc().input("foo.rs").emit("llvm-ir").codegen_units(3).arg("-O").arg("-Cno-prepopulate-passes").run();
     let re = regex::Regex::new(r#"define\ i32\ .*inlined"#).unwrap();
     assert_eq!(count_regex_matches_in_files_with_extension(&re, "ll"), 0);
     let re = regex::Regex::new(r#"define\ internal\ .*inlined"#).unwrap();
