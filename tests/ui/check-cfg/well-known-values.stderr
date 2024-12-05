@@ -236,17 +236,6 @@ LL |     target_vendor = "_UNEXPECTED_VALUE",
 warning: unexpected `cfg` condition value: `_UNEXPECTED_VALUE`
   --> $DIR/well-known-values.rs:79:5
    |
-LL |     test = "_UNEXPECTED_VALUE",
-   |     ^^^^----------------------
-   |         |
-   |         help: remove the value
-   |
-   = note: no expected value for `test`
-   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg.html> for more information about checking conditional configuration
-
-warning: unexpected `cfg` condition value: `_UNEXPECTED_VALUE`
-  --> $DIR/well-known-values.rs:81:5
-   |
 LL |     ub_checks = "_UNEXPECTED_VALUE",
    |     ^^^^^^^^^----------------------
    |              |
@@ -256,7 +245,7 @@ LL |     ub_checks = "_UNEXPECTED_VALUE",
    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg.html> for more information about checking conditional configuration
 
 warning: unexpected `cfg` condition value: `_UNEXPECTED_VALUE`
-  --> $DIR/well-known-values.rs:83:5
+  --> $DIR/well-known-values.rs:81:5
    |
 LL |     unix = "_UNEXPECTED_VALUE",
    |     ^^^^----------------------
@@ -267,7 +256,7 @@ LL |     unix = "_UNEXPECTED_VALUE",
    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg.html> for more information about checking conditional configuration
 
 warning: unexpected `cfg` condition value: `_UNEXPECTED_VALUE`
-  --> $DIR/well-known-values.rs:85:5
+  --> $DIR/well-known-values.rs:83:5
    |
 LL |     windows = "_UNEXPECTED_VALUE",
    |     ^^^^^^^----------------------
@@ -278,7 +267,7 @@ LL |     windows = "_UNEXPECTED_VALUE",
    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg.html> for more information about checking conditional configuration
 
 warning: unexpected `cfg` condition value: `linuz`
-  --> $DIR/well-known-values.rs:91:7
+  --> $DIR/well-known-values.rs:89:7
    |
 LL | #[cfg(target_os = "linuz")] // testing that we suggest `linux`
    |       ^^^^^^^^^^^^-------
