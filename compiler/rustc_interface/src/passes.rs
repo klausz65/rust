@@ -266,6 +266,7 @@ fn configure_and_expand(
 
     resolver.resolve_crate(&krate);
 
+    CStore::from_tcx(tcx).report_incompatible_target_modifiers(tcx, &krate, resolver.lint_buffer());
     krate
 }
 

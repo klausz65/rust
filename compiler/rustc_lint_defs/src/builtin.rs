@@ -50,6 +50,7 @@ declare_lint_pass! {
         FUZZY_PROVENANCE_CASTS,
         HIDDEN_GLOB_REEXPORTS,
         ILL_FORMED_ATTRIBUTE_INPUT,
+        INCOMPATIBLE_TARGET_MODIFIERS,
         INCOMPLETE_INCLUDE,
         INEFFECTIVE_UNSTABLE_TRAIT_IMPL,
         INLINE_NO_SANITIZE,
@@ -579,6 +580,46 @@ declare_lint! {
     pub UNUSED_CRATE_DEPENDENCIES,
     Allow,
     "crate dependencies that are never used",
+    crate_level_only
+}
+
+declare_lint! {
+    /// The `incompatible_target_modifiers` lint detects crates with incompatible target modifiers
+    /// (abi-changing or vulnerability-affecting flags).
+    ///
+    /// ### Example
+    ///
+    /// ```rust,ignore (needs extern crate)
+    /// #![deny(incompatible_target_modifiers)]
+    /// ```
+    ///
+    /// When main and dependency crates are compiled with `-Zregparm=1` and `-Zregparm=2` correspondingly.
+    ///
+    /// This will produce:
+    ///
+    /// ```text
+    /// error: mixing `-Zregparm` will cause an ABI mismatch
+    ///   --> $DIR/incompatible_regparm.rs:12:1
+    ///    |
+    /// LL | #![crate_type = "lib"]
+    ///    | ^
+    ///    |
+    ///    = help: `-Zregparm` modifies the ABI and Rust crates compiled with different values of this flag cannot be used together safely
+    ///    = note: `-Zregparm=1` in this crate is incompatible with `-Zregparm=2` in dependency `wrong_regparm`
+    ///    = note: alternatively, use `-Cunsafe-allow-abi-mismatch=regparm` to silence this error
+    ///    = note: `#[deny(incompatible_target_modifiers)]` on by default
+    /// ```
+    ///
+    /// ### Explanation
+    ///
+    /// `Target modifiers` are compilation flags that affects abi or vulnerability resistance.
+    /// Linking together crates with incompatible target modifiers would produce incorrect code
+    /// or degradation of vulnerability resistance.
+    /// So this lint should find such inconsistency.
+    ///
+    pub INCOMPATIBLE_TARGET_MODIFIERS,
+    Deny,
+    "Incompatible target modifiers",
     crate_level_only
 }
 

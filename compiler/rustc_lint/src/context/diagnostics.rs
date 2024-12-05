@@ -426,6 +426,22 @@ pub(super) fn decorate_lint(sess: &Session, diagnostic: BuiltinLintDiag, diag: &
             lints::UnusedCrateDependency { extern_crate, local_crate }.decorate_lint(diag)
         }
         BuiltinLintDiag::WasmCAbi => lints::WasmCAbi.decorate_lint(diag),
+        BuiltinLintDiag::IncompatibleTargetModifiers {
+            extern_crate,
+            local_crate,
+            flag_name,
+            flag_name_prefixed,
+            flag_local_value,
+            flag_extern_value,
+        } => lints::IncompatibleTargetModifiers {
+            extern_crate,
+            local_crate,
+            flag_name,
+            flag_name_prefixed,
+            flag_local_value,
+            flag_extern_value,
+        }
+        .decorate_lint(diag),
         BuiltinLintDiag::IllFormedAttributeInput { suggestions } => {
             lints::IllFormedAttributeInput {
                 num_suggestions: suggestions.len(),

@@ -29,6 +29,7 @@ use rustc_middle::{bug, implement_ty_decoder};
 use rustc_serialize::opaque::MemDecoder;
 use rustc_serialize::{Decodable, Decoder};
 use rustc_session::Session;
+use rustc_session::config::TargetModifier;
 use rustc_session::cstore::{CrateSource, ExternCrate};
 use rustc_span::hygiene::HygieneDecodeContext;
 use rustc_span::symbol::kw;
@@ -74,6 +75,9 @@ impl MetadataBlob {
 /// own crate numbers.
 pub(crate) type CrateNumMap = IndexVec<CrateNum, CrateNum>;
 
+/// Target modifiers - abi / vulnerability-resist affecting flags
+pub(crate) type TargetModifiers = Vec<TargetModifier>;
+
 pub(crate) struct CrateMetadata {
     /// The primary crate data - binary metadata blob.
     blob: MetadataBlob,
@@ -111,6 +115,8 @@ pub(crate) struct CrateMetadata {
     cnum_map: CrateNumMap,
     /// Same ID set as `cnum_map` plus maybe some injected crates like panic runtime.
     dependencies: Vec<CrateNum>,
+    /// Target modifiers - abi and vulnerability-resist affecting flags the crate was compiled with
+    target_modifiers: TargetModifiers,
     /// How to link (or not link) this crate to the currently compiled crate.
     dep_kind: CrateDepKind,
     /// Filesystem location of this crate.
@@ -961,6 +967,13 @@ impl CrateRoot {
         metadata: &'a MetadataBlob,
     ) -> impl ExactSizeIterator<Item = CrateDep> + Captures<'a> {
         self.crate_deps.decode(metadata)
+    }
+
+    pub(crate) fn decode_target_modifiers<'a>(
+        &self,
+        metadata: &'a MetadataBlob,
+    ) -> impl ExactSizeIterator<Item = TargetModifier> + Captures<'a> {
+        self.target_modifiers.decode(metadata)
     }
 }
 
@@ -1819,6 +1832,7 @@ impl CrateMetadata {
         raw_proc_macros: Option<&'static [ProcMacro]>,
         cnum: CrateNum,
         cnum_map: CrateNumMap,
+        target_modifiers: TargetModifiers,
         dep_kind: CrateDepKind,
         source: CrateSource,
         private_dep: bool,
@@ -1850,6 +1864,7 @@ impl CrateMetadata {
             cnum,
             cnum_map,
             dependencies,
+            target_modifiers,
             dep_kind,
             source: Lrc::new(source),
             private_dep,
@@ -1877,6 +1892,10 @@ impl CrateMetadata {
 
     pub(crate) fn add_dependency(&mut self, cnum: CrateNum) {
         self.dependencies.push(cnum);
+    }
+
+    pub(crate) fn target_modifiers(&self) -> impl Iterator<Item = &TargetModifier> + '_ {
+        self.target_modifiers.iter()
     }
 
     pub(crate) fn update_extern_crate(&mut self, new_extern_crate: ExternCrate) -> bool {

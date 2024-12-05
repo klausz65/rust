@@ -414,6 +414,13 @@ lint_improper_ctypes_union_layout_help = consider adding a `#[repr(C)]` or `#[re
 lint_improper_ctypes_union_layout_reason = this union has unspecified layout
 lint_improper_ctypes_union_non_exhaustive = this union is non-exhaustive
 
+lint_incompatible_target_modifiers =
+    mixing `{$flag_name_prefixed}` will cause an ABI mismatch
+    .note1 = `{$flag_name_prefixed}={$flag_local_value}` in this crate is incompatible with `{$flag_name_prefixed}={$flag_extern_value}` in dependency `{$extern_crate}`
+    .help = `{$flag_name_prefixed}` modifies the ABI and Rust crates compiled with different values of this flag cannot be used together safely
+    .suggestion = set `{$flag_name_prefixed}=${flag_extern_value}` in this crate or `{$flag_name_prefixed}=${flag_local_value}` in `{$extern_crate}`
+    .note2 = alternatively, use `-Cunsafe-allow-abi-mismatch={$flag_name}` to silence this error
+
 lint_incomplete_include =
     include macro expected single expression in source
 
