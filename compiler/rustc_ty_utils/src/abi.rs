@@ -476,16 +476,11 @@ fn fn_abi_sanity_check<'tcx>(
                         // However wasm sadly *does* currently use this mode so we have to allow it --
                         // but we absolutely shouldn't let any more targets do that.
                         // (Also see <https://github.com/rust-lang/rust/issues/115666>.)
-                        //
-                        // The unstable abi `PtxKernel` also uses Direct for now.
-                        // It needs to switch to something else before stabilization can happen.
-                        // (See issue: https://github.com/rust-lang/rust/issues/117271)
 
                         match spec_abi {
                             // The unadjusted ABI is ill specified, but unfortunately we need it for
                             // calling certain LLVM intrinsics.
                             ExternAbi::Unadjusted => {}
-                            ExternAbi::PtxKernel => {}
                             ExternAbi::C { unwind: _ }
                                 if matches!(&*tcx.sess.target.arch, "wasm32" | "wasm64") => {}
                             _ => {
