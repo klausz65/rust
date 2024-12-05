@@ -484,7 +484,6 @@ impl<T> Rc<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(get_mut_unchecked)]
     ///
     /// use std::rc::Rc;
     ///
@@ -1026,8 +1025,6 @@ impl<T> Rc<[T]> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(get_mut_unchecked)]
-    ///
     /// use std::rc::Rc;
     ///
     /// let mut values = Rc::<[u32]>::new_uninit_slice(3);
@@ -1177,8 +1174,6 @@ impl<T, A: Allocator> Rc<mem::MaybeUninit<T>, A> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(get_mut_unchecked)]
-    ///
     /// use std::rc::Rc;
     ///
     /// let mut five = Rc::<u32>::new_uninit();
@@ -1214,8 +1209,6 @@ impl<T, A: Allocator> Rc<[mem::MaybeUninit<T>], A> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(get_mut_unchecked)]
-    ///
     /// use std::rc::Rc;
     ///
     /// let mut values = Rc::<[u32]>::new_uninit_slice(3);
