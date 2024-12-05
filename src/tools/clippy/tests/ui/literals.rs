@@ -30,7 +30,6 @@ fn main() {
     //~^ ERROR: integer type suffix should be separated by an underscore
     //~| NOTE: `-D clippy::unseparated-literal-suffix` implied by `-D warnings`
     //~| ERROR: this is a decimal constant
-    //~| NOTE: `-D clippy::zero-prefixed-literal` implied by `-D warnings`
 
     let ok9 = 0;
     let ok10 = 0_i64;

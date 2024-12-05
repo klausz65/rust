@@ -3107,3 +3107,12 @@ pub(crate) struct ReservedMultihash {
     #[suggestion(code = " ", applicability = "machine-applicable")]
     pub suggestion: Span,
 }
+
+#[derive(LintDiagnostic)]
+#[diag(lint_leading_zeros_in_decimal_literals)]
+pub(crate) struct LeadingZeros {
+    #[suggestion(lint_suggestion_remove_zeros, code = "")]
+    pub remove_zeros: (Span, Applicability),
+    #[suggestion(lint_suggestion_prefix_octal, code = "0o", applicability = "maybe-incorrect")]
+    pub prefix_octal: Option<Span>,
+}

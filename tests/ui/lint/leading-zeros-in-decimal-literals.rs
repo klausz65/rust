@@ -1,0 +1,12 @@
+//@ check-pass
+//@ run-rustfix
+//@ rustfix-only-machine-applicable
+
+fn main() {
+    let _ = 0111; //~ WARNING [leading_zeros_in_decimal_literals]
+    let _ = 0007; //~ WARNING [leading_zeros_in_decimal_literals]
+    let _ = 0008; //~ WARNING [leading_zeros_in_decimal_literals]
+    let _ = 0_0_;
+    let _ = 00;
+    let _ = 0;
+}
