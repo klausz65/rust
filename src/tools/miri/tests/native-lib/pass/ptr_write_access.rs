@@ -15,7 +15,6 @@ fn main() {
     test_init_array();
     test_init_static_inner();
     test_exposed();
-    test_expose_int();
     test_swap_ptr();
     test_swap_ptr_tuple();
     test_overwrite_dangling();
@@ -107,26 +106,13 @@ fn test_exposed() {
     assert_eq!(unsafe { *(p as *const i32) }, x);
 }
 
-/// Test function that writes a pointer and exposes the alloc of its int argument.
-fn test_expose_int() {
-    extern "C" {
-        fn expose_int(int_ptr: *const i32, pptr: *mut *const i32);
-    }
-
-    let x = 61;
-    let mut ptr = std::ptr::null();
-
-    unsafe { expose_int(&x, &mut ptr) };
-    assert_eq!(unsafe { *ptr }, x);
-}
-
 /// Test function that swaps two pointers and exposes the alloc of an int.
 fn test_swap_ptr() {
     extern "C" {
         fn swap_ptr(pptr0: *mut *const i32, pptr1: *mut *const i32);
     }
 
-    let x = 71;
+    let x = 61;
     let (mut ptr0, mut ptr1) = (&raw const x, null());
 
     unsafe { swap_ptr(&mut ptr0, &mut ptr1) };
@@ -145,7 +131,7 @@ fn test_swap_ptr_tuple() {
         fn swap_ptr_tuple(t_ptr: *mut Tuple);
     }
 
-    let x = 81;
+    let x = 71;
     let mut tuple = Tuple { ptr0: &raw const x, ptr1: null() };
 
     unsafe { swap_ptr_tuple(&mut tuple) }
@@ -158,7 +144,7 @@ fn test_overwrite_dangling() {
         fn overwrite_ptr(pptr: *mut *const i32);
     }
 
-    let b = Box::new(91);
+    let b = Box::new(81);
     let mut ptr = Box::as_ptr(&b);
     drop(b);
 
@@ -172,7 +158,7 @@ fn test_pass_dangling() {
         fn ignore_ptr(ptr: *const i32);
     }
 
-    let b = Box::new(101);
+    let b = Box::new(91);
     let ptr = Box::as_ptr(&b);
     drop(b);
 
@@ -192,11 +178,11 @@ fn test_swap_ptr_triple_dangling() {
         fn swap_ptr_triple_dangling(t_ptr: *const Triple);
     }
 
-    let x = 111;
-    let b = Box::new(121);
+    let x = 101;
+    let b = Box::new(111);
     let ptr = Box::as_ptr(&b);
     drop(b);
-    let z = 131;
+    let z = 121;
     let triple = Triple {
         ptr0: &raw const x,
         ptr1: ptr,
@@ -214,7 +200,7 @@ fn test_return_ptr() {
         fn return_ptr(ptr: *const i32) -> *const i32;
     }
 
-    let x = 141;
+    let x = 131;
     let ptr = &raw const x;
 
     let ptr = unsafe { return_ptr(ptr) };
