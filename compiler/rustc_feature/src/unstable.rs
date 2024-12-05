@@ -400,6 +400,8 @@ declare_features! (
     (unstable, c_variadic, "1.34.0", Some(44930)),
     /// Allows the use of `#[cfg(<true/false>)]`.
     (unstable, cfg_boolean_literals, "1.83.0", Some(131204)),
+    /// Allows the use of `#[cfg(contract_checks)` to check if contract checks are enabled.
+    (unstable, cfg_contract_checks, "CURRENT_RUSTC_VERSION", Some(133866)),
     /// Allows the use of `#[cfg(overflow_checks)` to check if integer overflow behaviour.
     (unstable, cfg_overflow_checks, "1.71.0", Some(111466)),
     /// Provides the relocation model information as cfg entry
@@ -596,6 +598,10 @@ declare_features! (
     (unstable, return_type_notation, "1.70.0", Some(109417)),
     /// Allows `extern "rust-cold"`.
     (unstable, rust_cold_cc, "1.63.0", Some(97544)),
+    /// Allows use of contracts attributes.
+    (unstable, rustc_contracts, "CURRENT_RUSTC_VERSION", Some(133866)),
+    /// Allows access to internal machinery used to implement contracts.
+    (unstable, rustc_contracts_internals, "CURRENT_RUSTC_VERSION", Some(133866)),
     /// Allows use of x86 SHA512, SM3 and SM4 target-features and intrinsics
     (unstable, sha512_sm_x86, "1.82.0", Some(126624)),
     /// Allows the use of SIMD types in functions declared in `extern` blocks.
