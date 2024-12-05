@@ -18,7 +18,7 @@ use rustc_span::def_id::LocalDefId;
 use rustc_span::{DUMMY_SP, Span};
 use rustc_trait_selection::error_reporting::traits::ArgKind;
 use rustc_trait_selection::traits;
-use rustc_type_ir::ClosureKind;
+use rustc_type_ir::{ClosureKind, Upcast as _};
 use tracing::{debug, instrument, trace};
 
 use super::{CoroutineTypes, Expectation, FnCtxt, check_fn};
@@ -312,16 +312,18 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                         .iter_instantiated_copied(self.tcx, args)
                         .map(|(c, s)| (c.as_predicate(), s)),
                 ),
-            ty::Dynamic(object_type, ..) => {
-                let sig = object_type.projection_bounds().find_map(|pb| {
-                    let pb = pb.with_self_ty(self.tcx, self.tcx.types.trait_object_dummy_self);
-                    self.deduce_sig_from_projection(None, closure_kind, pb)
-                });
-                let kind = object_type
-                    .principal_def_id()
-                    .and_then(|did| self.tcx.fn_trait_kind_from_def_id(did));
-                (sig, kind)
-            }
+            ty::Dynamic(data, ..) => self.deduce_closure_signature_from_predicates(
+                self.tcx.types.trait_object_dummy_self,
+                closure_kind,
+                data.iter().map(|bound| {
+                    (
+                        bound
+                            .with_self_ty(self.tcx, self.tcx.types.trait_object_dummy_self)
+                            .upcast(self.tcx),
+                        DUMMY_SP,
+                    )
+                }),
+            ),
             ty::Infer(ty::TyVar(vid)) => self.deduce_closure_signature_from_predicates(
                 Ty::new_var(self.tcx, self.root_var(vid)),
                 closure_kind,

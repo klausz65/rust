@@ -2,10 +2,12 @@ use rustc_data_structures::fx::{FxHashSet, FxIndexMap, FxIndexSet};
 use rustc_errors::codes::*;
 use rustc_errors::struct_span_code_err;
 use rustc_hir as hir;
+use rustc_hir::HirId;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::DefId;
-use rustc_lint_defs::builtin::UNUSED_ASSOCIATED_TYPE_BOUNDS;
-use rustc_middle::span_bug;
+use rustc_lint_defs::builtin::{
+    DYN_ASSOC_REDUNDANT, DYN_ASSOC_SHADOWED, UNUSED_ASSOCIATED_TYPE_BOUNDS,
+};
 use rustc_middle::ty::fold::BottomUpFolder;
 use rustc_middle::ty::{
     self, DynKind, ExistentialPredicateStableCmpExt as _, Ty, TyCtxt, TypeFoldable,
@@ -30,17 +32,17 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
     pub(super) fn lower_trait_object_ty(
         &self,
         span: Span,
-        hir_id: hir::HirId,
-        hir_trait_bounds: &[hir::PolyTraitRef<'tcx>],
+        hir_id: HirId,
+        hir_bounds: &[hir::PolyTraitRef<'tcx>],
         lifetime: &hir::Lifetime,
         representation: DynKind,
     ) -> Ty<'tcx> {
         let tcx = self.tcx();
-
-        let mut bounds = Bounds::default();
-        let mut potential_assoc_types = Vec::new();
         let dummy_self = self.tcx().types.trait_object_dummy_self;
-        for trait_bound in hir_trait_bounds.iter().rev() {
+
+        let mut user_written_bounds = Bounds::default();
+        let mut potential_assoc_types = Vec::new();
+        for trait_bound in hir_bounds.iter() {
             if let hir::BoundPolarity::Maybe(_) = trait_bound.modifiers.polarity {
                 continue;
             }
@@ -54,115 +56,134 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                 hir::BoundConstness::Never,
                 hir::BoundPolarity::Positive,
                 dummy_self,
-                &mut bounds,
+                &mut user_written_bounds,
                 PredicateFilter::SelfOnly,
             ) {
                 potential_assoc_types.extend(cur_potential_assoc_types);
             }
         }
 
-        let mut trait_bounds = vec![];
-        let mut projection_bounds = vec![];
-        for (pred, span) in bounds.clauses() {
-            let bound_pred = pred.kind();
-            match bound_pred.skip_binder() {
-                ty::ClauseKind::Trait(trait_pred) => {
-                    assert_eq!(trait_pred.polarity, ty::PredicatePolarity::Positive);
-                    trait_bounds.push((bound_pred.rebind(trait_pred.trait_ref), span));
-                }
-                ty::ClauseKind::Projection(proj) => {
-                    projection_bounds.push((bound_pred.rebind(proj), span));
-                }
-                ty::ClauseKind::TypeOutlives(_) => {
-                    // Do nothing, we deal with regions separately
-                }
-                ty::ClauseKind::RegionOutlives(_)
-                | ty::ClauseKind::ConstArgHasType(..)
-                | ty::ClauseKind::WellFormed(_)
-                | ty::ClauseKind::ConstEvaluatable(_)
-                | ty::ClauseKind::HostEffect(..) => {
-                    span_bug!(span, "did not expect {pred} clause in object bounds");
+        // Check that there are no gross dyn-compatibility violations;
+        // most importantly, that the supertraits don't contain `Self`,
+        // to avoid ICEs.
+        for (clause, span) in user_written_bounds.clauses() {
+            if let Some(trait_pred) = clause.as_trait_clause() {
+                let violations =
+                    hir_ty_lowering_dyn_compatibility_violations(tcx, trait_pred.def_id());
+                if !violations.is_empty() {
+                    let reported = report_dyn_incompatibility(
+                        tcx,
+                        span,
+                        Some(hir_id),
+                        trait_pred.def_id(),
+                        &violations,
+                    )
+                    .emit();
+                    return Ty::new_error(tcx, reported);
                 }
             }
         }
 
-        // Expand trait aliases recursively and check that only one regular (non-auto) trait
-        // is used and no 'maybe' bounds are used.
-        let expanded_traits =
-            traits::expand_trait_aliases(tcx, trait_bounds.iter().map(|&(a, b)| (a, b)));
+        let (expanded_trait_bounds, expanded_projection_bounds) =
+            traits::expand_trait_aliases(tcx, user_written_bounds.clauses());
+        let (regular_traits, mut auto_traits): (Vec<_>, Vec<_>) = expanded_trait_bounds
+            .into_iter()
+            .partition(|(trait_ref, _)| !tcx.trait_is_auto(trait_ref.def_id()));
 
-        let (mut auto_traits, regular_traits): (Vec<_>, Vec<_>) =
-            expanded_traits.partition(|i| tcx.trait_is_auto(i.trait_ref().def_id()));
+        // Map the projection bounds onto a key that makes it easy to remove redundant
+        // bounds that are constrained by supertraits of the principal def id.
+        let mut projection_bounds = FxIndexMap::default();
+        for (proj, proj_span) in expanded_projection_bounds {
+            if let Some((old_proj, old_proj_span)) = projection_bounds.insert(
+                tcx.anonymize_bound_vars(proj.map_bound(|proj| proj.projection_term)),
+                (proj, proj_span),
+            ) && tcx.anonymize_bound_vars(proj) != tcx.anonymize_bound_vars(old_proj)
+            {
+                let item = tcx.item_name(proj.projection_def_id());
+                self.dcx()
+                    .struct_span_err(
+                        span,
+                        format!(
+                            "conflicting associated type bounds for `{item}` when \
+                            expanding trait alias"
+                        ),
+                    )
+                    .with_span_label(
+                        old_proj_span,
+                        format!("`{item}` is specified to be `{}` here", old_proj.term()),
+                    )
+                    .with_span_label(
+                        proj_span,
+                        format!("`{item}` is specified to be `{}` here", proj.term()),
+                    )
+                    .emit();
+            }
+        }
 
+        // We  don't support empty trait objects.
+        if regular_traits.is_empty() && auto_traits.is_empty() {
+            let guar =
+                self.report_trait_object_with_no_traits_error(span, user_written_bounds.clauses());
+            return Ty::new_error(tcx, guar);
+        }
         // We don't support >1 principal
         if regular_traits.len() > 1 {
             let guar = self.report_trait_object_addition_traits_error(&regular_traits);
             return Ty::new_error(tcx, guar);
         }
-        // We  don't support empty trait objects.
-        if regular_traits.is_empty() && auto_traits.is_empty() {
-            let guar = self.report_trait_object_with_no_traits_error(span, &trait_bounds);
-            return Ty::new_error(tcx, guar);
-        }
         // Don't create a dyn trait if we have errors in the principal.
-        if let Err(guar) = trait_bounds.error_reported() {
+        if let Err(guar) = regular_traits.error_reported() {
             return Ty::new_error(tcx, guar);
         }
 
-        // Check that there are no gross dyn-compatibility violations;
-        // most importantly, that the supertraits don't contain `Self`,
-        // to avoid ICEs.
-        for item in &regular_traits {
-            let violations =
-                hir_ty_lowering_dyn_compatibility_violations(tcx, item.trait_ref().def_id());
-            if !violations.is_empty() {
-                let reported = report_dyn_incompatibility(
-                    tcx,
-                    span,
-                    Some(hir_id),
-                    item.trait_ref().def_id(),
-                    &violations,
-                )
-                .emit();
-                return Ty::new_error(tcx, reported);
-            }
-        }
+        let principal_trait = regular_traits.into_iter().next();
 
-        let mut associated_types: FxIndexMap<Span, FxIndexSet<DefId>> = FxIndexMap::default();
+        let mut needed_associated_types = FxIndexSet::default();
 
-        let regular_traits_refs_spans = trait_bounds
-            .into_iter()
-            .filter(|(trait_ref, _)| !tcx.trait_is_auto(trait_ref.def_id()));
+        // These are the projection bounds that we get from supertraits that
+        // don't mention the dyn trait recursively. See comment below.
+        let mut implied_projection_bounds = vec![];
 
-        for (base_trait_ref, original_span) in regular_traits_refs_spans {
-            let base_pred: ty::Predicate<'tcx> = base_trait_ref.upcast(tcx);
+        if let Some((principal_trait, spans)) = &principal_trait {
+            let pred: ty::Predicate<'tcx> = (*principal_trait).upcast(tcx);
             for ClauseWithSupertraitSpan { pred, supertrait_span } in
-                traits::elaborate(tcx, [ClauseWithSupertraitSpan::new(base_pred, original_span)])
-                    .filter_only_self()
+                traits::elaborate(tcx, [ClauseWithSupertraitSpan::new(
+                    pred,
+                    *spans.last().unwrap(),
+                )])
+                .filter_only_self()
             {
                 debug!("observing object predicate `{pred:?}`");
 
                 let bound_predicate = pred.kind();
                 match bound_predicate.skip_binder() {
                     ty::PredicateKind::Clause(ty::ClauseKind::Trait(pred)) => {
-                        let pred = bound_predicate.rebind(pred);
-                        associated_types.entry(original_span).or_default().extend(
-                            tcx.associated_items(pred.def_id())
+                        // FIXME(negative_bounds): Handle this correctly...
+                        let trait_ref =
+                            tcx.anonymize_bound_vars(bound_predicate.rebind(pred.trait_ref));
+                        needed_associated_types.extend(
+                            tcx.associated_items(trait_ref.def_id())
                                 .in_definition_order()
                                 .filter(|item| item.kind == ty::AssocKind::Type)
                                 .filter(|item| !item.is_impl_trait_in_trait())
-                                .map(|item| item.def_id),
+                                // If the associated type has a `where Self: Sized` bound,
+                                // we do not need to constrain the associated type.
+                                .filter(|item| !tcx.generics_require_sized_self(item.def_id))
+                                .map(|item| (item.def_id, trait_ref)),
                         );
                     }
                     ty::PredicateKind::Clause(ty::ClauseKind::Projection(pred)) => {
-                        let pred = bound_predicate.rebind(pred);
+                        let elaborated_projection = bound_predicate.rebind(pred);
                         // A `Self` within the original bound will be instantiated with a
                         // `trait_object_dummy_self`, so check for that.
-                        let references_self = match pred.skip_binder().term.unpack() {
-                            ty::TermKind::Ty(ty) => ty.walk().any(|arg| arg == dummy_self.into()),
-                            // FIXME(associated_const_equality): We should walk the const instead of not doing anything
-                            ty::TermKind::Const(_) => false,
-                        };
+                        let references_self =
+                            match elaborated_projection.skip_binder().term.unpack() {
+                                ty::TermKind::Ty(ty) => {
+                                    ty.walk().any(|arg| arg == dummy_self.into())
+                                }
+                                // FIXME(associated_const_equality): We should walk the const instead of not doing anything
+                                ty::TermKind::Const(_) => false,
+                            };
 
                         // If the projection output contains `Self`, force the user to
                         // elaborate it explicitly to avoid a lot of complexity.
@@ -183,12 +204,39 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                         // the discussion in #56288 for alternatives.
                         if !references_self {
                             // Include projections defined on supertraits.
-                            projection_bounds.push((pred, original_span));
+                            implied_projection_bounds.push(elaborated_projection);
+
+                            if let Some((user_written_projection, user_written_span)) =
+                                projection_bounds.shift_remove(&tcx.anonymize_bound_vars(
+                                    elaborated_projection.map_bound(|pred| pred.projection_term),
+                                ))
+                            {
+                                if tcx.anonymize_bound_vars(user_written_projection)
+                                    == tcx.anonymize_bound_vars(elaborated_projection)
+                                {
+                                    self.lint_redundant_projection(
+                                        hir_id,
+                                        user_written_projection,
+                                        principal_trait.def_id(),
+                                        user_written_span,
+                                        supertrait_span,
+                                    );
+                                } else {
+                                    self.lint_shadowed_projection(
+                                        hir_id,
+                                        user_written_projection,
+                                        elaborated_projection,
+                                        principal_trait.def_id(),
+                                        user_written_span,
+                                        supertrait_span,
+                                    );
+                                }
+                            }
                         }
 
                         self.check_elaborated_projection_mentions_input_lifetimes(
-                            pred,
-                            original_span,
+                            elaborated_projection,
+                            *spans.first().unwrap(),
                             supertrait_span,
                         );
                     }
@@ -197,32 +245,38 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
             }
         }
 
-        // `dyn Trait<Assoc = Foo>` desugars to (not Rust syntax) `dyn Trait where <Self as Trait>::Assoc = Foo`.
-        // So every `Projection` clause is an `Assoc = Foo` bound. `associated_types` contains all associated
-        // types's `DefId`, so the following loop removes all the `DefIds` of the associated types that have a
-        // corresponding `Projection` clause
-        for def_ids in associated_types.values_mut() {
-            for (projection_bound, span) in &projection_bounds {
-                let def_id = projection_bound.projection_def_id();
-                def_ids.swap_remove(&def_id);
-                if tcx.generics_require_sized_self(def_id) {
-                    tcx.emit_node_span_lint(
-                        UNUSED_ASSOCIATED_TYPE_BOUNDS,
-                        hir_id,
-                        *span,
-                        crate::errors::UnusedAssociatedTypeBounds { span: *span },
-                    );
-                }
+        // `dyn Trait<Assoc = Foo>` desugars to something like `dyn Trait + (Trait::Assoc = Foo)`.
+        // So every `Projection` clause is an `Assoc = Foo` bound. `associated_types`
+        // contains all associated types's `DefId`, so the following loop removes all
+        // the `DefIds` of the associated types that have a corresponding `Projection`.
+        for &(projection_bound, span) in projection_bounds.values() {
+            let def_id = projection_bound.projection_def_id();
+            let trait_ref = tcx.anonymize_bound_vars(
+                projection_bound.map_bound(|p| p.projection_term.trait_ref(tcx)),
+            );
+            needed_associated_types.shift_remove(&(def_id, trait_ref));
+            if tcx.generics_require_sized_self(def_id) {
+                tcx.emit_node_span_lint(
+                    UNUSED_ASSOCIATED_TYPE_BOUNDS,
+                    hir_id,
+                    span,
+                    crate::errors::UnusedAssociatedTypeBounds { span },
+                );
             }
-            // If the associated type has a `where Self: Sized` bound, we do not need to constrain the associated
-            // type in the `dyn Trait`.
-            def_ids.retain(|def_id| !tcx.generics_require_sized_self(def_id));
+        }
+        for projection_bound in &implied_projection_bounds {
+            let def_id = projection_bound.projection_def_id();
+            let trait_ref = tcx.anonymize_bound_vars(
+                projection_bound.map_bound(|p| p.projection_term.trait_ref(tcx)),
+            );
+            needed_associated_types.swap_remove(&(def_id, trait_ref));
         }
 
         if let Err(guar) = self.check_for_required_assoc_tys(
-            associated_types,
+            principal_trait.as_ref().map_or(smallvec![], |(_, spans)| spans.clone()),
+            needed_associated_types,
             potential_assoc_types,
-            hir_trait_bounds,
+            hir_bounds,
         ) {
             return Ty::new_error(tcx, guar);
         }
@@ -232,14 +286,19 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         // We remove duplicates by inserting into a `FxHashSet` to avoid re-ordering
         // the bounds
         let mut duplicates = FxHashSet::default();
-        auto_traits.retain(|i| duplicates.insert(i.trait_ref().def_id()));
-        debug!(?regular_traits);
+        auto_traits.retain(|(trait_pred, _)| duplicates.insert(trait_pred.def_id()));
+
+        debug!(?principal_trait);
         debug!(?auto_traits);
 
         // Erase the `dummy_self` (`trait_object_dummy_self`) used above.
-        let existential_trait_refs = regular_traits.iter().map(|i| {
-            i.trait_ref().map_bound(|trait_ref: ty::TraitRef<'tcx>| {
+        let principal_trait_ref = principal_trait.map(|(trait_pred, spans)| {
+            trait_pred.map_bound(|trait_pred| {
+                let trait_ref = trait_pred.trait_ref;
+                assert_eq!(trait_pred.polarity, ty::PredicatePolarity::Positive);
                 assert_eq!(trait_ref.self_ty(), dummy_self);
+
+                let span = *spans.first().unwrap();
 
                 // Verify that `dummy_self` did not leak inside default type parameters. This
                 // could not be done at path creation, since we need to see through trait aliases.
@@ -250,7 +309,8 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     .args
                     .iter()
                     .enumerate()
-                    .skip(1) // Remove `Self` for `ExistentialPredicate`.
+                    // Skip `Self`
+                    .skip(1)
                     .map(|(index, arg)| {
                         if arg == dummy_self.into() {
                             let param = &generics.own_params[index];
@@ -269,8 +329,7 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     })
                     .collect();
 
-                let span = i.bottom().1;
-                let empty_generic_args = hir_trait_bounds.iter().any(|hir_bound| {
+                let empty_generic_args = hir_bounds.iter().any(|hir_bound| {
                     hir_bound.trait_ref.path.res == Res::Def(DefKind::Trait, trait_ref.def_id)
                         && hir_bound.span.contains(span)
                 });
@@ -281,30 +340,15 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     empty_generic_args,
                 );
 
-                if references_self {
-                    let def_id = i.bottom().0.def_id();
-                    struct_span_code_err!(
-                        self.dcx(),
-                        i.bottom().1,
-                        E0038,
-                        "the {} `{}` cannot be made into an object",
-                        tcx.def_descr(def_id),
-                        tcx.item_name(def_id),
-                    )
-                    .with_note(
-                        rustc_middle::traits::DynCompatibilityViolation::SupertraitSelf(
-                            smallvec![],
-                        )
-                        .error_msg(),
-                    )
-                    .emit();
-                }
-
-                ty::ExistentialTraitRef::new(tcx, trait_ref.def_id, args)
+                ty::ExistentialPredicate::Trait(ty::ExistentialTraitRef::new(
+                    tcx,
+                    trait_ref.def_id,
+                    args,
+                ))
             })
         });
 
-        let existential_projections = projection_bounds.iter().map(|(bound, _)| {
+        let existential_projections = projection_bounds.values().map(|(bound, _)| {
             bound.map_bound(|mut b| {
                 assert_eq!(b.projection_term.self_ty(), dummy_self);
 
@@ -323,21 +367,24 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     b.projection_term = replace_dummy_self_with_error(tcx, b.projection_term, guar);
                 }
 
-                ty::ExistentialProjection::erase_self_ty(tcx, b)
+                ty::ExistentialPredicate::Projection(ty::ExistentialProjection::erase_self_ty(
+                    tcx, b,
+                ))
             })
         });
 
-        let regular_trait_predicates = existential_trait_refs
-            .map(|trait_ref| trait_ref.map_bound(ty::ExistentialPredicate::Trait));
-        let auto_trait_predicates = auto_traits.into_iter().map(|trait_ref| {
-            ty::Binder::dummy(ty::ExistentialPredicate::AutoTrait(trait_ref.trait_ref().def_id()))
+        let auto_trait_predicates = auto_traits.into_iter().map(|(trait_pred, _)| {
+            assert_eq!(trait_pred.polarity(), ty::PredicatePolarity::Positive);
+            assert_eq!(trait_pred.self_ty().skip_binder(), dummy_self);
+
+            ty::Binder::dummy(ty::ExistentialPredicate::AutoTrait(trait_pred.def_id()))
         });
+
         // N.b. principal, projections, auto traits
         // FIXME: This is actually wrong with multiple principals in regards to symbol mangling
-        let mut v = regular_trait_predicates
-            .chain(
-                existential_projections.map(|x| x.map_bound(ty::ExistentialPredicate::Projection)),
-            )
+        let mut v = principal_trait_ref
+            .into_iter()
+            .chain(existential_projections)
             .chain(auto_trait_predicates)
             .collect::<SmallVec<[_; 8]>>();
         v.sort_by(|a, b| a.skip_binder().stable_cmp(tcx, &b.skip_binder()));
@@ -376,6 +423,53 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         debug!(?region_bound);
 
         Ty::new_dynamic(tcx, existential_predicates, region_bound, representation)
+    }
+
+    fn lint_shadowed_projection(
+        &self,
+        hir_id: HirId,
+        user_written_projection: ty::PolyProjectionPredicate<'tcx>,
+        elaborated_projection: ty::PolyProjectionPredicate<'tcx>,
+        principal_def_id: DefId,
+        user_written_span: Span,
+        supertrait_span: Span,
+    ) {
+        let tcx = self.tcx();
+        let assoc = tcx.item_name(user_written_projection.projection_def_id());
+        let principal = tcx.item_name(principal_def_id);
+        self.tcx().node_span_lint(DYN_ASSOC_SHADOWED, hir_id, user_written_span, |diag| {
+            diag.primary_message(format!(
+                "associated type bound for `{assoc}` in `dyn {principal}` differs from \
+                associated type bound implied by supertrait",
+            ));
+            diag.span_label(user_written_span, "this bound has no effect and will be ignored");
+            diag.note(format!(
+                "`{assoc} = {}` was implied by a supertrait and shadows any user-written bounds, \
+                so `{assoc} = {}` will be ignored",
+                elaborated_projection.term(),
+                user_written_projection.term(),
+            ));
+            diag.span_label(supertrait_span, "shadowed due to this supertrait bound");
+        });
+    }
+
+    fn lint_redundant_projection(
+        &self,
+        hir_id: HirId,
+        user_written_projection: ty::PolyProjectionPredicate<'tcx>,
+        principal_def_id: DefId,
+        user_written_span: Span,
+        supertrait_span: Span,
+    ) {
+        let tcx = self.tcx();
+        let assoc = tcx.item_name(user_written_projection.projection_def_id());
+        let principal = tcx.item_name(principal_def_id);
+        self.tcx().node_span_lint(DYN_ASSOC_REDUNDANT, hir_id, user_written_span, |diag| {
+            diag.primary_message(format!(
+                "associated type bound for `{assoc}` in `dyn {principal}` is redundant",
+            ));
+            diag.span_label(supertrait_span, "redundant due to this supertrait bound");
+        });
     }
 
     /// Check that elaborating the principal of a trait ref doesn't lead to projections

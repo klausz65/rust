@@ -136,6 +136,8 @@ pub trait Ty<I: Interner<Ty = Self>>:
         matches!(self.kind(), ty::FnPtr(..))
     }
 
+    fn is_self_param(self) -> bool;
+
     fn fn_sig(self, interner: I) -> ty::Binder<I, ty::FnSig<I>> {
         match self.kind() {
             ty::FnPtr(sig_tys, hdr) => sig_tys.with(hdr),

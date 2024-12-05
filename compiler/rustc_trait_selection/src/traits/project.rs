@@ -18,6 +18,7 @@ use rustc_middle::ty::visit::TypeVisitableExt;
 use rustc_middle::ty::{self, Term, Ty, TyCtxt, TypingMode, Upcast};
 use rustc_middle::{bug, span_bug};
 use rustc_span::symbol::sym;
+use rustc_type_ir::elaborate;
 use tracing::{debug, instrument};
 
 use super::{
@@ -59,7 +60,7 @@ enum ProjectionCandidate<'tcx> {
     TraitDef(ty::PolyProjectionPredicate<'tcx>),
 
     /// Bounds specified on an object type
-    Object(ty::PolyProjectionPredicate<'tcx>),
+    Object(ty::PolyProjectionPredicate<'tcx>, bool),
 
     /// From an "impl" (or a "pseudo-impl" returned by select)
     Select(Selection<'tcx>),
@@ -658,7 +659,7 @@ fn project<'cx, 'tcx>(
 
     assemble_candidates_from_object_ty(selcx, obligation, &mut candidates);
 
-    if let ProjectionCandidateSet::Single(ProjectionCandidate::Object(_)) = candidates {
+    if let ProjectionCandidateSet::Single(ProjectionCandidate::Object(..)) = candidates {
         // Avoid normalization cycle from selection (see
         // `assemble_candidates_from_object_ty`).
         // FIXME(lazy_normalization): Lazy normalization should save us from
@@ -814,6 +815,7 @@ fn assemble_candidates_from_object_ty<'cx, 'tcx>(
         }
         _ => return,
     };
+
     let env_predicates = data
         .projection_bounds()
         .filter(|bound| bound.item_def_id() == obligation.predicate.def_id)
@@ -823,10 +825,22 @@ fn assemble_candidates_from_object_ty<'cx, 'tcx>(
         selcx,
         obligation,
         candidate_set,
-        ProjectionCandidate::Object,
+        |c| ProjectionCandidate::Object(c, false),
         env_predicates,
         false,
     );
+
+    if let Some(principal) = data.principal() {
+        assemble_candidates_from_predicates(
+            selcx,
+            obligation,
+            candidate_set,
+            |c| ProjectionCandidate::Object(c, true),
+            elaborate::implied_supertrait_projections(tcx, principal)
+                .map(|pred| pred.with_self_ty(tcx, object_ty).upcast(tcx)),
+            true,
+        );
+    }
 }
 
 #[instrument(
@@ -1235,9 +1249,11 @@ fn confirm_candidate<'cx, 'tcx>(
 ) -> Progress<'tcx> {
     debug!(?obligation, ?candidate, "confirm_candidate");
     let mut progress = match candidate {
-        ProjectionCandidate::ParamEnv(poly_projection)
-        | ProjectionCandidate::Object(poly_projection) => {
+        ProjectionCandidate::ParamEnv(poly_projection) => {
             confirm_param_env_candidate(selcx, obligation, poly_projection, false)
+        }
+        ProjectionCandidate::Object(poly_projection, from_super) => {
+            confirm_param_env_candidate(selcx, obligation, poly_projection, from_super)
         }
 
         ProjectionCandidate::TraitDef(poly_projection) => {
