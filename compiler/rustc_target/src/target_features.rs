@@ -631,24 +631,27 @@ impl super::spec::Target {
         }
     }
 
-    pub fn features_for_correct_vector_abi(&self) -> &'static [(u64, &'static str)] {
+    // Returns None if the given target does not use vector registers to pass vector-type data.
+    pub fn features_for_correct_vector_abi(&self) -> Option<&'static [(u64, &'static str)]> {
         match &*self.arch {
-            "x86" | "x86_64" => X86_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "aarch64" | "arm64ec" => AARCH64_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "arm" => ARM_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "powerpc" | "powerpc64" => POWERPC_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "loongarch64" => &[], // on-stack ABI, so we complain about all by-val vectors
-            "riscv32" | "riscv64" => RISCV_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "wasm32" | "wasm64" => WASM_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "s390x" => S390X_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "sparc" | "sparc64" => SPARC_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "hexagon" => HEXAGON_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "mips" | "mips32r6" | "mips64" | "mips64r6" => MIPS_FEATURES_FOR_CORRECT_VECTOR_ABI,
-            "bpf" => &[], // no vector ABI
-            "csky" => CSKY_FEATURES_FOR_CORRECT_VECTOR_ABI,
+            "x86" | "x86_64" => Some(X86_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "aarch64" | "arm64ec" => Some(AARCH64_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "arm" => Some(ARM_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "powerpc" | "powerpc64" => Some(POWERPC_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "loongarch64" => None, // LoongArch doesn't use vector registers for vectors
+            "riscv32" | "riscv64" => Some(RISCV_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "wasm32" | "wasm64" => Some(WASM_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "s390x" => Some(S390X_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "sparc" | "sparc64" => Some(SPARC_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "hexagon" => Some(HEXAGON_FEATURES_FOR_CORRECT_VECTOR_ABI),
+            "mips" | "mips32r6" | "mips64" | "mips64r6" => {
+                Some(MIPS_FEATURES_FOR_CORRECT_VECTOR_ABI)
+            }
+            "bpf" => Some(&[]), // no vector ABI
+            "csky" => Some(CSKY_FEATURES_FOR_CORRECT_VECTOR_ABI),
             // FIXME: for some tier3 targets, we are overly cautious and always give warnings
             // when passing args in vector registers.
-            _ => &[],
+            _ => Some(&[]),
         }
     }
 
