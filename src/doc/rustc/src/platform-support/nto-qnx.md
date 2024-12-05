@@ -22,10 +22,15 @@ Currently, the following QNX Neutrino versions and compilation targets are suppo
 
 | QNX Neutrino Version | Target Architecture | Full support | `no_std` support |
 |----------------------|---------------------|:------------:|:----------------:|
-| 7.1 | AArch64 | ✓ | ✓ |
-| 7.1 | x86_64  | ✓ | ✓ |
-| 7.0 | AArch64 | ? | ✓ |
-| 7.0 | x86     |   | ✓ |
+| 7.1 with io-pkt  | AArch64  | ✓ | ✓ |
+| 7.1 with io-sock | AArch64  | ? | ✓ |
+| 7.1 with io-pkt  | x86_64   | ✓ | ✓ |
+| 7.1 with io-sock | x86_64   | ? | ✓ |
+| 7.0              | AArch64  | ? | ✓ |
+| 7.0              | x86      |   | ✓ |
+
+On QNX 7.0 and 7.1, `io-pkt` is used as network stack by default. QNX 7.1 includes
+the optional network stack `io-sock`.
 
 Adding other architectures that are supported by QNX Neutrino is possible.
 
@@ -107,7 +112,8 @@ There are no further known requirements.
 For conditional compilation, following QNX Neutrino specific attributes are defined:
 
 - `target_os` = `"nto"`
-- `target_env` = `"nto71"` (for QNX Neutrino 7.1)
+- `target_env` = `"nto71"` (for QNX Neutrino 7.1 with "classic" network stack "io_pkt")
+- `target_env` = `"nto71_iosock"` (for QNX Neutrino 7.1 with network stack "io_sock")
 - `target_env` = `"nto70"` (for QNX Neutrino 7.0)
 
 ## Building the target
@@ -130,18 +136,35 @@ To compile for QNX Neutrino (aarch64 and x86_64) and Linux (x86_64):
 
 ```bash
 export build_env='
-    CC_aarch64-unknown-nto-qnx710=qcc
-    CFLAGS_aarch64-unknown-nto-qnx710=-Vgcc_ntoaarch64le_cxx
-    CXX_aarch64-unknown-nto-qnx710=qcc
+    CC_i586_pc_nto_qnx700=qcc
+    CFLAGS_i586_pc_nto_qnx700=-Vgcc_ntox86_cxx
+    CXX_i586_pc_nto_qnx700=qcc
+    AR_i586_pc_nto_qnx700=ntox86-ar
+
+    CC_aarch64_unknown_nto_qnx710=qcc
+    CFLAGS_aarch64_unknown_nto_qnx710=-Vgcc_ntoaarch64le_cxx
+    CXX_aarch64_unknown_nto_qnx710=qcc
     AR_aarch64_unknown_nto_qnx710=ntoaarch64-ar
-    CC_x86_64-pc-nto-qnx710=qcc
-    CFLAGS_x86_64-pc-nto-qnx710=-Vgcc_ntox86_64_cxx
-    CXX_x86_64-pc-nto-qnx710=qcc
-    AR_x86_64_pc_nto_qnx710=ntox86_64-ar'
+
+    CC_aarch64_unknown_nto_qnx710_iosock=qcc
+    CFLAGS_aarch64_unknown_nto_qnx710_iosock=-Vgcc_ntoaarch64le_cxx
+    CXX_aarch64_unknown_nto_qnx710_iosock=qcc
+    AR_aarch64_unknown_nto_qnx710_iosock=ntoaarch64-ar
+
+    CC_aarch64_unknown_nto_qnx700=qcc
+    CFLAGS_aarch64_unknown_nto_qnx700=-Vgcc_ntoaarch64le_cxx
+    CXX_aarch64_unknown_nto_qnx700=qcc
+    AR_aarch64_unknown_nto_qnx700=ntoaarch64-ar
+
+    CC_x86_64_pc_nto_qnx710=qcc
+    CFLAGS_x86_64_pc_nto_qnx710=-Vgcc_ntox86_64_cxx
+    CXX_x86_64_pc_nto_qnx710=qcc
+    AR_x86_64_pc_nto_qnx710=ntox86_64-ar
+    '
 
 env $build_env \
     ./x.py build \
-        --target aarch64-unknown-nto-qnx710,x86_64-pc-nto-qnx710,x86_64-unknown-linux-gnu \
+        --target aarch64-unknown-nto-qnx710_iosock,aarch64-unknown-nto-qnx710,x86_64-pc-nto-qnx710,x86_64-unknown-linux-gnu \
         rustc library/core library/alloc library/std
 ```
 
@@ -157,15 +180,7 @@ To run all tests on a x86_64 QNX Neutrino target:
 
 ```bash
 export TEST_DEVICE_ADDR="localhost:12345" # must address the test target, can be a SSH tunnel
-export build_env='
-    CC_aarch64-unknown-nto-qnx710=qcc
-    CFLAGS_aarch64-unknown-nto-qnx710=-Vgcc_ntoaarch64le_cxx
-    CXX_aarch64-unknown-nto-qnx710=qcc
-    AR_aarch64_unknown_nto_qnx710=ntoaarch64-ar
-    CC_x86_64-pc-nto-qnx710=qcc
-    CFLAGS_x86_64-pc-nto-qnx710=-Vgcc_ntox86_64_cxx
-    CXX_x86_64-pc-nto-qnx710=qcc
-    AR_x86_64_pc_nto_qnx710=ntox86_64-ar'
+export build_env=<see above>
 
 # Disable tests that only work on the host or don't make sense for this target.
 # See also:
