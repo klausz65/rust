@@ -2369,6 +2369,20 @@ impl<'test> TestCx<'test> {
         // eg. /home/user/rust/build
         normalize_path(parent_build_dir, "$BUILD_DIR");
 
+        // e.g. /home/user/.cargo
+        if let Ok(cargo_home) = home::cargo_home() {
+            let mut from = cargo_home.display().to_string();
+            if json {
+                from = from.replace("\\", "\\\\");
+            }
+            // In CI, `$CARGO_HOME` is `/cargo`, but some paths in output contain `.../cargo...`
+            // Try to normalize only paths beginning with `$CARGO_HOME`
+            for prefix in [' ', '\n', '\'', '"'] {
+                normalized =
+                    normalized.replace(&format!("{prefix}{from}"), &format!("{prefix}$CARGO_HOME"));
+            }
+        }
+
         if json {
             // escaped newlines in json strings should be readable
             // in the stderr files. There's no point int being correct,

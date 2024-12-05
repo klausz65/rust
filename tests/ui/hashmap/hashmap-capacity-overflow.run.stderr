@@ -1,0 +1,3 @@
+thread 'main' panicked at $CARGO_HOME/registry/src/index.crates.io-6f17d22bba15001f/hashbrown-0.15.0/src/raw/mod.rs:84:40:
+Hash table capacity overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
